@@ -1,5 +1,5 @@
 # Publica a Central na HostGator a cada gravação na branch main.
-# Precisa dos secrets: FTP_SERVER, FTP_USERNAME, FTP_PASSWORD (e opcional FTP_DIR).
+# Precisa dos secrets: FTP_SERVER (só para ativar), FTP_USERNAME, FTP_PASSWORD (e opcional FTP_DIR).
 name: Publicar na HostGator
 
 on:
@@ -22,16 +22,13 @@ jobs:
         run: |
           if [ -z "$S" ]; then echo "Secrets de FTP ainda não configurados. Nada publicado."; echo "ok=false" >> $GITHUB_OUTPUT; else echo "ok=true" >> $GITHUB_OUTPUT; fi
 
-      - name: Normalizar endereço do servidor
+      - name: Definir servidor da HostGator
         if: steps.chk.outputs.ok == 'true'
-        env:
-          S: ${{ secrets.FTP_SERVER }}
         run: |
-          for d in ftp.diascentroautomotivo.com.br central.diascentroautomotivo.com.br diascentroautomotivo.com.br; do echo "::warning::DNS $d = $(getent ahostsv4 $d | awk '{print $1}' | sort -u | tr '\n' ' ')"; done
-          echo "::warning::diagnostico: tamanho=${#S} tem_protocolo=$([[ "$S" == *://* ]] && echo sim || echo nao) tem_espaco=$([[ "$S" =~ [[:space:]] ]] && echo sim || echo nao) tem_barra=$([[ "$S" == */* ]] && echo sim || echo nao) tem_porta=$([[ "$S" == *:[0-9]* ]] && echo sim || echo nao)"
-          H=$(echo "$S" | tr -d '[:space:]' | sed -E 's#^[a-zA-Z]+://##; s#/.*$##; s#:[0-9]+$##')
-          echo "::add-mask::$H"
-          if getent hosts "$H" >/dev/null; then echo "servidor resolve no DNS: ok"; else echo "::error::O endereço em FTP_SERVER não existe no DNS. Confira no cPanel (Contas FTP > Configurar cliente FTP)."; exit 1; fi
+          # Servidor real da Central na HostGator (mesmo IP de central.diascentroautomotivo.com.br).
+          # Atenção: ftp.diascentroautomotivo.com.br aponta para o Netlify (site da oficina), não serve.
+          H=$(getent ahostsv4 central.diascentroautomotivo.com.br | awk '{print $1}' | head -1)
+          [ -z "$H" ] && H=216.172.172.187
           echo "FTP_HOST=$H" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
@@ -45,6 +42,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
+          security: loose
           server-dir: ${{ secrets.FTP_DIR || './' }}
           exclude: |
             **/.git*
