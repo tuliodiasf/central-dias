@@ -22,6 +22,17 @@ jobs:
         run: |
           if [ -z "$S" ]; then echo "Secrets de FTP ainda não configurados. Nada publicado."; echo "ok=false" >> $GITHUB_OUTPUT; else echo "ok=true" >> $GITHUB_OUTPUT; fi
 
+      - name: Normalizar endereço do servidor
+        if: steps.chk.outputs.ok == 'true'
+        env:
+          S: ${{ secrets.FTP_SERVER }}
+        run: |
+          echo "diagnostico: tamanho=${#S} tem_protocolo=$([[ "$S" == *://* ]] && echo sim || echo nao) tem_espaco=$([[ "$S" =~ [[:space:]] ]] && echo sim || echo nao) tem_barra=$([[ "$S" == */* ]] && echo sim || echo nao) tem_porta=$([[ "$S" == *:[0-9]* ]] && echo sim || echo nao)"
+          H=$(echo "$S" | tr -d '[:space:]' | sed -E 's#^[a-zA-Z]+://##; s#/.*$##; s#:[0-9]+$##')
+          echo "::add-mask::$H"
+          if getent hosts "$H" >/dev/null; then echo "servidor resolve no DNS: ok"; else echo "::error::O endereço em FTP_SERVER não existe no DNS. Confira no cPanel (Contas FTP > Configurar cliente FTP)."; exit 1; fi
+          echo "FTP_HOST=$H" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
         if: steps.chk.outputs.ok == 'true'
 
@@ -29,7 +40,7 @@ jobs:
         if: steps.chk.outputs.ok == 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ env.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
