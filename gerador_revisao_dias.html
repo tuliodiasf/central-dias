@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisão Preço Fixo Dias</title>
+<style>
+  :root{
+    --verm:#C8102E; --verm-d:#9E0C22; --verm-cl:#FBE7EA;
+    --preto:#141414; --tinta:#222; --cinza:#666; --cinza3:#9a9a9a;
+    --linha:#e2e2e2; --cinza-cl:#F4F4F4; --verde:#1d7a4d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef0f3;color:var(--tinta);font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;font-size:14px}
+  .wrap{max-width:820px;margin:0 auto;padding:16px}
+  h1{font-size:19px;margin:0 0 2px;color:var(--preto)}
+  .sub{font-size:12.5px;color:var(--cinza);margin-bottom:14px}
+
+  .card{background:#fff;border:1px solid var(--linha);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  .sec{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--verm);margin:0 0 10px;border-bottom:2px solid var(--verm);padding-bottom:4px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .dsc{display:flex;gap:6px}
+  .dsc input{flex:1}
+  .dsc select{width:70px;flex:none;font-weight:700;color:var(--verm)}
+  .dica{margin-top:10px;font-size:12px;color:var(--cinza);background:var(--cinza-cl);border-radius:8px;padding:8px 10px}
+  .dica b{color:var(--verm-d)}
+  @media(max-width:640px){ .grid3{grid-template-columns:1fr} }
+  label{display:block;font-size:11px;font-weight:700;color:var(--cinza);margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
+  input,select{width:100%;padding:7px 9px;border:1px solid var(--linha);border-radius:7px;font-size:13px;font-family:inherit;background:#fff}
+  input:focus,select:focus{outline:none;border-color:var(--verm)}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--cinza);text-align:left;padding:4px 6px;border-bottom:1px solid var(--linha)}
+  td{padding:3px 4px;vertical-align:middle}
+  td .it{width:100%}
+  .qt{width:56px;text-align:center}
+  .vl{width:96px;text-align:right}
+  .tt{width:96px;text-align:right;font-weight:700;padding-right:8px}
+  .rm{cursor:pointer;color:var(--cinza3);font-weight:700;font-size:15px;padding:0 4px;border:0;background:none}
+  .rm:hover{color:var(--verm)}
+  .addbtn{margin-top:6px;font-size:12px;color:var(--verm);cursor:pointer;font-weight:700;background:none;border:0;padding:4px 0}
+  .subtot{text-align:right;font-size:13px;font-weight:800;padding:6px 8px 0;color:var(--preto)}
+
+  .rev-inc .tit{font-size:11px;color:var(--cinza);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
+  .incl{display:flex;flex-wrap:wrap;gap:6px}
+  .incl span{font-size:11.5px;background:var(--verm-cl);color:var(--verm-d);border-radius:999px;padding:4px 10px;font-weight:600}
+
+  /* fechamento */
+  .fechamento{background:var(--preto);color:#fff;border-radius:14px;padding:20px 22px;margin-bottom:14px}
+  .fechamento .de{font-size:13px;color:#bdbdbd}
+  .fechamento .de s{color:#8f8f8f}
+  .hero{display:flex;align-items:baseline;gap:10px;margin:6px 0 2px;flex-wrap:wrap}
+  .hero .par{font-size:42px;font-weight:900;line-height:1;color:#fff}
+  .hero .vez{font-size:16px;font-weight:800;color:var(--verm)}
+  .hero .semjuros{font-size:12px;background:var(--verm);color:#fff;border-radius:6px;padding:3px 8px;font-weight:700}
+  .fechamento .tot4{font-size:13px;color:#d6d6d6;margin-top:2px}
+  .avista{margin-top:12px;padding-top:12px;border-top:1px solid #3a3a3a;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .avista .lb{font-size:12px;font-weight:700;letter-spacing:.04em;color:#bdbdbd;text-transform:uppercase}
+  .avista .vl2{font-size:24px;font-weight:900;color:#fff}
+  .avista .eco{font-size:12px;background:var(--verde);color:#fff;border-radius:6px;padding:3px 8px;font-weight:700}
+  .validade{margin-top:12px;font-size:12.5px;color:#ffd7dc;font-weight:700}
+  .validade b{color:#fff}
+
+  .vezsel{background:transparent;border:0!important;color:var(--verm);font-size:16px;font-weight:800;font-family:inherit;padding:0!important;cursor:pointer;width:auto!important;-webkit-appearance:none;appearance:none}
+  .vezsel:focus{outline:none}
+  .print-only{display:none}
+  .rpt-alerta{margin-top:6px;font-size:12.5pt;font-weight:900;color:var(--verm);letter-spacing:.02em}
+  .rpt-head{display:none}
+  .acoes{display:flex;gap:10px;justify-content:center;margin:6px 0 24px;flex-wrap:wrap}
+  button.b{padding:11px 26px;border-radius:10px;font-size:14px;font-weight:800;letter-spacing:.03em;cursor:pointer;border:0}
+  .b-print{background:var(--verm);color:#fff}
+  .b-print:hover{background:var(--verm-d)}
+
+  @media print{
+    @page{size:A4;margin:12mm}
+    body{background:#fff;font-size:11pt}
+    .wrap{max-width:100%;padding:0}
+    .no-print,.addbtn,.rm,.acoes{display:none!important}
+    .print-only{display:inline}
+    .card{border:0;padding:4px 0;margin-bottom:8px;border-radius:0}
+    .rpt-head{display:block;text-align:center;border-bottom:2.5px solid var(--verm);padding-bottom:6px;margin-bottom:10px}
+    .rpt-head img{height:44px}
+    .rpt-head .end{font-size:8pt;color:#777;margin-top:2px}
+    h1.screen,.sub{display:none}
+    input,select{border:0!important;padding:2px 3px;background:transparent;-webkit-appearance:none;appearance:none;font-size:11pt;color:#000}
+    select{padding-right:0}
+    input::-webkit-calendar-picker-indicator{display:none!important}
+    th{border-bottom:1px solid #999}
+    td{border-bottom:.5px solid #eee}
+    .rev-inc td{border-bottom:0}
+    .sec{font-size:9pt}
+    .fechamento,.incl span{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="rpt-head">
+    <img src="logo.png" alt="Dias Centro Automotivo">
+    <div class="end">Av. João Mendes, 540 — Pampulha, Uberlândia/MG</div>
+    <div class="rpt-alerta">REVISÃO PREÇO FIXO DCA</div>
+  </div>
+
+  <h1 class="screen">Revisão Preço Fixo Dias</h1>
+  <div class="sub">monte o pacote, ajuste os preços e gere a proposta pronta pro cliente · nada é salvo</div>
+
+  <div class="card">
+    <div class="sec">Cliente e veículo</div>
+    <div class="grid">
+      <div><label>Nome do cliente</label><input id="c-nome" placeholder="Ex.: João Paulo Mendes"></div>
+      <div><label>Telefone</label><input id="c-tel" placeholder="(34) 99999-9999"></div>
+      <div><label>Veículo</label><input id="c-veic" placeholder="Ex.: Onix 1.0 2020"></div>
+      <div><label>Placa</label><input id="c-placa" placeholder="ABC1D23" style="text-transform:uppercase"></div>
+      <div><label>Condição válida até</label><input id="c-validade" type="date" oninput="recalc()"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec">Peças</div>
+    <table>
+      <thead><tr><th>Item</th><th class="qt">Qtde</th><th class="vl">Valor un.</th><th class="tt">Total</th><th class="no-print"></th></tr></thead>
+      <tbody id="pecas"></tbody>
+    </table>
+    <button class="addbtn no-print" onclick="addPeca()">+ adicionar peça</button>
+    <div class="subtot">Total peças: <span id="tot-pecas">R$ 0</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec">Serviços</div>
+    <table>
+      <thead><tr><th>Serviço</th><th class="qt">Qtde</th><th class="vl">Valor un.</th><th class="tt">Total</th><th class="no-print"></th></tr></thead>
+      <tbody id="servicos"></tbody>
+    </table>
+    <button class="addbtn no-print" onclick="addServico()">+ adicionar serviço</button>
+    <div class="subtot">Total serviços: <span id="tot-servicos">R$ 0</span></div>
+  </div>
+
+  <div class="card no-print">
+    <div class="sec">Condição comercial</div>
+    <div class="grid3">
+      <div>
+        <label>Parcelas no cartão</label>
+        <select id="f-vezes" onchange="recalc()"></select>
+      </div>
+      <div>
+        <label>Desconto no cartão</label>
+        <div class="dsc">
+          <input id="d-cartao" type="number" min="0" step="0.01" value="0" oninput="recalc()">
+          <select id="d-cartao-tipo" onchange="recalc()"><option value="perc">%</option><option value="reais">R$</option></select>
+        </div>
+      </div>
+      <div>
+        <label>Desconto à vista</label>
+        <div class="dsc">
+          <input id="d-avista" type="number" min="0" step="0.01" value="0" oninput="recalc()">
+          <select id="d-avista-tipo" onchange="recalc()"><option value="perc">%</option><option value="reais">R$</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="dica">Desconto zerado = a proposta impressa sai <b>sem nenhuma menção a desconto</b>. Só abra desconto se o cliente pedir.</div>
+  </div>
+
+  <div class="fechamento">
+    <div class="de" id="f-linha-cheio">Sua revisão completa: <s id="f-cheio">R$ 0</s></div>
+    <div class="hero">
+      <span class="par" id="f-parcela">R$ 0</span>
+      <span class="vez">em <span id="f-vezes-print">4x</span></span>
+      <span class="semjuros">SEM JUROS</span>
+    </div>
+    <div class="tot4" id="f-linha-cartao"></div>
+    <div class="avista" id="f-bloco-avista">
+      <span class="lb">à vista</span>
+      <span class="vl2" id="f-avista">R$ 0</span>
+      <span class="eco" id="f-eco-avista">economia de <span id="f-ecoav">R$ 0</span></span>
+    </div>
+    <div class="validade" id="f-validade" style="display:none"></div>
+  </div>
+
+  <div class="acoes no-print">
+    <button class="b b-print" onclick="imprimir()">🖨️ Gerar proposta / PDF</button>
+  </div>
+
+</div>
+
+<script>
+const MEDIDAS = [
+  ["OLEO MOTOR 0W16",80],
+  ["OLEO MOTOR 0W20",75],
+  ["OLEO MOTOR 0W30",80],
+  ["OLEO MOTOR 0W40",85],
+  ["OLEO MOTOR 5W20",70],
+  ["OLEO MOTOR 5W30",70],
+  ["OLEO MOTOR 5W40",65],
+  ["OLEO MOTOR 5W50",90],
+  ["OLEO MOTOR 10W30",50],
+  ["OLEO MOTOR 10W40",55],
+  ["OLEO MOTOR 15W40",38],
+  ["OLEO MOTOR 20W50",35]
+];
+const OLEO_PADRAO = "OLEO MOTOR 0W20";
+const brl = function(v){ var n=Math.round((v||0)*100)/100; var casas=(n%1===0)?0:2; return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:casas,maximumFractionDigits:casas}); };
+const brl0 = v => 'R$ ' + Math.floor(v).toLocaleString('pt-BR');
+const REV_ITENS = ['Inspeção elétrica','Inspeção visual do motor','Verificação de fluidos','Reaperto técnico da suspensão','Inspeção geral dos freios','Regulagem do freio de estacionamento'];
+
+function rowHTML(item, qt, vl, isOil){
+  var itemCell;
+  if(isOil){
+    var txt = (item && item!=='') ? item : OLEO_PADRAO;
+    itemCell = '<input class="it oil" list="lista-medidas-oleo" value="'+txt+'" oninput="oleoInput(this)" placeholder="Ex.: OLEO MOTOR 0W20 HAVOLINE FULL SYN" title="Escolha a medida na lista e complete com a marca/especificação">';
+  } else {
+    itemCell = '<input class="it" value="'+(item||'')+'" placeholder="Descrição do item">';
+  }
+  return '<tr>'
+    +'<td>'+itemCell+'</td>'
+    +'<td><input class="qt qtd" type="number" min="0" step="1" value="'+qt+'" oninput="recalc()"></td>'
+    +'<td><input class="vl val" type="number" min="0" step="0.01" value="'+vl+'" oninput="recalc()"></td>'
+    +'<td class="tt tot">R$ 0</td>'
+    +'<td class="no-print"><button class="rm" onclick="this.closest(\'tr\').remove();recalc()">×</button></td>'
+    +'</tr>';
+}
+function revItensHTML(){
+  var chips=REV_ITENS.map(function(t){return '<span>'+t+'</span>';}).join('');
+  return '<tr class="rev-inc"><td colspan="5" style="padding:2px 6px 10px 6px"><div class="rev-inc-body"><div class="tit">A revisão inclui, sem custo adicional:</div><div class="incl">'+chips+'</div></div></td></tr>';
+}
+function oleoInput(inp){
+  var tr=inp.closest('tr');
+  var txt=(inp.value||'').trim().toUpperCase();
+  for(var i=0;i<MEDIDAS.length;i++){
+    if(MEDIDAS[i][0]===txt){ tr.querySelector('.val').value=MEDIDAS[i][1]; break; }
+  }
+  recalc();
+}
+function datalistHTML(){
+  var o=MEDIDAS.map(function(m){return '<option value="'+m[0]+'">';}).join('');
+  return '<datalist id="lista-medidas-oleo">'+o+'</datalist>';
+}
+
+const PECAS = [
+  ["__OIL__",4,75],
+  ["ARRUELA BUJÃO DO DRENO",1,10],
+  ["FILTRO DE ÓLEO",1,30],
+  ["FILTRO DE COMBUSTÍVEL",1,0],
+  ["FILTRO DE AR DO MOTOR",1,50],
+  ["FILTRO DE AR CONDICIONADO",1,30],
+  ["HIGIENIZADOR AR CONDICIONADO",1,0],
+  ["ADITIVO LIMPEZA TANQUE COMBUSTÍVEL",1,100],
+  ["",1,0],
+  ["",1,0]
+];
+const SERVS = [
+  ["ALINHAMENTO DE GEOMETRIA DIANTEIRO",1,100],
+  ["BALANCEAMENTO DE RODAS",4,25],
+  ["SERVIÇO DE REVISÃO",1,100],
+  ["__REVITENS__",0,0],
+  ["",1,0]
+];
+
+function addPeca(){ document.getElementById('pecas').insertAdjacentHTML('beforeend', rowHTML('',1,0,false)); recalc(); }
+function addServico(){ document.getElementById('servicos').insertAdjacentHTML('beforeend', rowHTML('',1,0,false)); recalc(); }
+
+function initTabela(){
+  var p=''; PECAS.forEach(function(r){ p+=rowHTML(r[0]==='__OIL__'?'':r[0], r[1], r[2], r[0]==='__OIL__'); });
+  document.getElementById('pecas').innerHTML=p;
+  var s=''; SERVS.forEach(function(r){ s+= r[0]==='__REVITENS__' ? revItensHTML() : rowHTML(r[0], r[1], r[2], false); });
+  document.getElementById('servicos').innerHTML=s;
+  recalc();
+}
+
+function somaTabela(id){
+  var tot=0;
+  document.querySelectorAll('#'+id+' tr').forEach(function(tr){
+    var qEl=tr.querySelector('.qtd'); if(!qEl) return;
+    var q=parseFloat(qEl.value)||0, v=parseFloat(tr.querySelector('.val').value)||0, t=q*v;
+    tr.querySelector('.tot').textContent=brl(t); tot+=t;
+  });
+  return tot;
+}
+function dtBR(iso){ if(!iso) return ''; var p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+function initVezes(){
+  var sel=document.getElementById('f-vezes'); if(!sel) return;
+  var opts=''; for(var i=1;i<=10;i++){ opts+='<option value="'+i+'"'+(i===4?' selected':'')+'>'+i+'x</option>'; }
+  sel.innerHTML=opts;
+}
+// desconto manual: lê o campo + o tipo (% ou R$) e devolve o abatimento em reais, travado entre 0 e o total
+function descontoEmReais(idCampo, idTipo, sub){
+  var el=document.getElementById(idCampo), tp=document.getElementById(idTipo);
+  var v=parseFloat(el&&el.value)||0; if(v<0) v=0;
+  var d=(tp&&tp.value==='reais') ? v : sub*(v/100);
+  if(d>sub) d=sub;
+  return d;
+}
+function recalc(){
+  var tp=somaTabela('pecas'), ts=somaTabela('servicos');
+  document.getElementById('tot-pecas').textContent=brl(tp);
+  document.getElementById('tot-servicos').textContent=brl(ts);
+  var sub=tp+ts;
+  var vezesSel=document.getElementById('f-vezes');
+  var vezes=parseInt(vezesSel&&vezesSel.value)||4;
+
+  // DESCONTO 100% MANUAL. Zerado = nada de desconto aparece na proposta.
+  var dCartao=descontoEmReais('d-cartao','d-cartao-tipo',sub);
+  var dAvista=descontoEmReais('d-avista','d-avista-tipo',sub);
+  var totCartao=sub-dCartao;
+  var avista=sub-dAvista;
+
+  // parcela arredondada PRA CIMA no centavo, para a soma das parcelas nunca ficar abaixo do total (não perde margem)
+  var parcela=Math.ceil(totCartao/vezes*100)/100;
+  var totN=Math.round(totCartao*100)/100;
+
+  document.getElementById('f-parcela').textContent=brl(parcela);
+  var lblP=document.getElementById('f-vezes-print'); if(lblP) lblP.textContent=vezes+'x';
+
+  // linha de cima: só risca o valor cheio quando existe desconto no cartão
+  var linhaCheio=document.getElementById('f-linha-cheio');
+  if(dCartao>0){ linhaCheio.innerHTML='Sua revisão completa: <s id="f-cheio">'+brl(sub)+'</s>'; }
+  else { linhaCheio.innerHTML='Sua revisão completa: <b style="color:#fff">'+brl(sub)+'</b>'; }
+
+  // linha do cartão: com desconto mostra a economia, sem desconto só informa o total parcelado
+  var linhaCartao=document.getElementById('f-linha-cartao');
+  if(dCartao>0){
+    linhaCartao.innerHTML='no cartão em <b>'+vezes+'x</b>, com desconto: <b>'+brl(totN)+'</b> · você economiza <span style="color:#7fd1a3;font-weight:700">'+brl(dCartao)+'</span>';
+  } else {
+    linhaCartao.innerHTML='no cartão em <b>'+vezes+'x</b> sem juros · total <b>'+brl(totN)+'</b>';
+  }
+
+  // bloco à vista: só existe se houver desconto à vista, senão nem aparece
+  var blocoAv=document.getElementById('f-bloco-avista');
+  if(dAvista>0){
+    blocoAv.style.display='flex';
+    document.getElementById('f-avista').textContent=brl(avista);
+    document.getElementById('f-ecoav').textContent=brl(sub-avista);
+  } else {
+    blocoAv.style.display='none';
+  }
+
+  var val=document.getElementById('c-validade').value;
+  var fv=document.getElementById('f-validade');
+  if(val){ fv.style.display='block'; fv.innerHTML='⏳ Condição especial válida até <b>'+dtBR(val)+'</b> — aproveite.'; }
+  else { fv.style.display='none'; }
+}
+function slugNome(s){
+  var t=(s||'Cliente').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return t||'Cliente';
+}
+function imprimir(){
+  var n=(document.getElementById('c-nome').value||'').trim();
+  // nome de arquivo padrão sugerido ao salvar/imprimir em PDF
+  document.title='Revisao_precofixo_'+slugNome(n);
+  window.print();
+}
+document.body.insertAdjacentHTML('beforeend', datalistHTML());
+initVezes();
+initTabela();
+</script>
+</body>
+</html>

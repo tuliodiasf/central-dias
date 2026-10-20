@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Autorização de Orçamento · Dias Centro Automotivo</title>
+<style>
+  :root{ --verm:#C8102E; --verm-d:#9E0C22; --preto:#111; --cinza:#666; --borda:#e6e6e6; --fundo:#f6f6f7; --verde:#1d7a4d; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--fundo);color:var(--preto);padding:16px;line-height:1.5}
+  .wrap{max-width:560px;margin:0 auto}
+  .topo{display:flex;align-items:center;gap:12px;background:#111;border-radius:14px;padding:16px 18px;margin-bottom:14px}
+  .topo img{height:40px}
+  .topo .t1{color:#fff;font-weight:800;font-size:16px;letter-spacing:.02em}
+  .topo .t2{color:#bbb;font-size:11.5px}
+  .card{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:18px;margin-bottom:12px}
+  .tag{display:inline-block;background:var(--verm);color:#fff;font-weight:800;font-size:11px;letter-spacing:.06em;padding:5px 12px;border-radius:999px;margin-bottom:10px}
+  h1{font-size:19px;margin-bottom:2px}
+  .sub{color:var(--cinza);font-size:13px}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-top:12px;font-size:13.5px}
+  .info .l{color:var(--cinza);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .sec{font-size:12px;font-weight:800;color:var(--verm);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #eee;padding-bottom:5px;margin:4px 0 8px}
+  .item{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #f2f2f2;font-size:13.5px}
+  .item:last-child{border-bottom:0}
+  .item .d{flex:1}
+  .item .q{color:var(--cinza);font-size:11.5px}
+  .item b{white-space:nowrap}
+  .lin{display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px}
+  .lin.desc span:last-child{color:var(--verm);font-weight:700}
+  .lin.tot{border-top:2px solid #111;margin-top:6px;padding-top:9px;font-size:17px;font-weight:900}
+  .pgto{background:#FBE7EA;border:1px solid var(--verm);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--verm-d);font-weight:700;margin-top:10px}
+  .validade{font-size:12px;color:var(--cinza);text-align:center;margin:10px 0}
+  label{display:block;font-size:12px;font-weight:700;margin:12px 0 4px}
+  input{width:100%;padding:13px 14px;border:1px solid #ccc;border-radius:10px;font-size:16px}
+  .chk{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:13px;color:#333}
+  .chk input{width:22px;height:22px;flex-shrink:0;accent-color:var(--verde);margin-top:1px}
+  .btn{width:100%;padding:16px;border:0;border-radius:12px;background:var(--verde);color:#fff;font-size:16.5px;font-weight:800;cursor:pointer;letter-spacing:.02em}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .erro{background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;border-radius:10px;padding:11px 14px;font-size:13px;margin-top:10px;display:none}
+  .estado{ text-align:center;padding:34px 18px }
+  .estado .ic{font-size:44px;margin-bottom:10px}
+  .estado h2{font-size:18px;margin-bottom:6px}
+  .estado p{color:var(--cinza);font-size:13.5px}
+  .rod{color:#999;font-size:11px;text-align:center;margin:16px 0 6px}
+  .obsbox{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#444;white-space:pre-wrap;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topo">
+    <img src="logo-menu.png" alt="Dias Centro Automotivo" onerror="this.src='logo.png';this.onerror=function(){this.style.display='none'};">
+    <div><div class="t1">DIAS CENTRO AUTOMOTIVO</div><div class="t2">Av. João Mendes, 540 · Uberlândia/MG</div></div>
+  </div>
+
+  <div id="carregando" class="card estado"><div class="ic">🚗</div><h2>Carregando seu orçamento...</h2><p>Um instante.</p></div>
+
+  <div id="conteudo" style="display:none">
+    <div class="card">
+      <span class="tag">AUTORIZAÇÃO DE ORÇAMENTO</span>
+      <h1 id="c-num">Orçamento</h1>
+      <div class="sub">Confira os itens e autorize para a oficina dar andamento no serviço.</div>
+      <div class="info" id="c-info"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Produtos e peças</div>
+      <div id="c-prod"></div>
+      <div class="sec" style="margin-top:14px">Serviços</div>
+      <div id="c-serv"></div>
+      <div style="margin-top:14px">
+        <div class="lin"><span>Subtotal</span><span id="c-sub"></span></div>
+        <div class="lin desc" id="c-desc-lin" style="display:none"><span>Desconto</span><span id="c-desc"></span></div>
+        <div class="lin tot"><span>Total</span><span id="c-total"></span></div>
+      </div>
+      <div class="pgto" id="c-pgto" style="display:none"></div>
+      <div class="obsbox" id="c-obs" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Sua autorização</div>
+      <label>Nome completo</label>
+      <input id="f-nome" autocomplete="name" placeholder="Digite seu nome completo">
+      <label>CPF</label>
+      <input id="f-cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCpf(this)">
+      <div class="chk"><input type="checkbox" id="f-chk"><span>Li os itens e valores acima e <b>AUTORIZO</b> a Dias Centro Automotivo a executar este orçamento.</span></div>
+      <button class="btn" id="f-btn" onclick="autorizar()">✅ Autorizar orçamento</button>
+      <div class="erro" id="f-erro"></div>
+      <div class="validade" id="c-validade"></div>
+    </div>
+  </div>
+
+  <div id="sucesso" class="card estado" style="display:none">
+    <div class="ic">✅</div><h2>Orçamento autorizado!</h2>
+    <p>Sua autorização foi registrada com data e hora.<br>A oficina já foi avisada e vai dar andamento no serviço.<br><br><b>Obrigado pela confiança!</b></p>
+  </div>
+
+  <div id="indisponivel" class="card estado" style="display:none">
+    <div class="ic">⚠️</div><h2 id="ind-titulo">Link indisponível</h2>
+    <p id="ind-msg">Este link não está mais disponível. Fale com a oficina para receber um novo.</p>
+    <p style="margin-top:10px"><a href="https://wa.me/553432131003" style="color:var(--verm);font-weight:700">Falar com a Dias no WhatsApp</a></p>
+  </div>
+
+  <div class="rod">Autorização eletrônica registrada com data, hora e identificação · Dias Centro Automotivo</div>
+</div>
+
+<script>
+const FN_URL = 'https://lprogvakqrhnpvekggld.supabase.co/functions/v1/autorizar-orcamento';
+const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwcm9ndmFrcXJobnB2ZWtnZ2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MjI0MjgsImV4cCI6MjA5NTQ5ODQyOH0.UfbV-dRGDYx_Oe3VMQueQWEfo-_X-EEL12RdEZlhydo';
+const HDRS = { 'Authorization': 'Bearer ' + ANON, 'apikey': ANON, 'Content-Type': 'application/json' };
+const token = new URLSearchParams(location.search).get('t') || '';
+const brl = v => 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function mascaraCpf(el){
+  var v=el.value.replace(/\D/g,'').slice(0,11);
+  el.value = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/,'.$1-$2');
+}
+
+function mostrar(id){
+  ['carregando','conteudo','sucesso','indisponivel'].forEach(function(x){ document.getElementById(x).style.display = x===id ? (x==='conteudo'?'block':'block') : 'none'; });
+}
+
+function indisponivel(titulo, msg){
+  document.getElementById('ind-titulo').textContent=titulo;
+  document.getElementById('ind-msg').textContent=msg;
+  mostrar('indisponivel');
+}
+
+async function carregar(){
+  if(!token){ indisponivel('Link inválido','Este endereço está incompleto. Abra o link exatamente como recebeu no WhatsApp.'); return; }
+  try{
+    var r=await fetch(FN_URL+'?t='+encodeURIComponent(token), { headers: HDRS });
+    var d=await r.json();
+    if(!r.ok){ indisponivel('Link inválido', d.error||'Link não encontrado. Fale com a oficina.'); return; }
+    if(d.status==='autorizado'){ mostrar('sucesso'); return; }
+    if(d.status==='expirado'){ indisponivel('Link expirado','O prazo deste orçamento venceu. Fale com a oficina para receber um link atualizado.'); return; }
+    if(d.status!=='pendente'){ indisponivel('Link indisponível','Este link foi cancelado pela oficina. Peça um novo.'); return; }
+    var s=d.snapshot||{};
+    document.getElementById('c-num').textContent='Orçamento Nº '+(s.num||'');
+    var info='';
+    if(s.cli)   info+='<div><div class="l">Cliente</div><b>'+esc(s.cli)+'</b></div>';
+    if(s.placa) info+='<div><div class="l">Placa</div><b>'+esc(s.placa)+'</b></div>';
+    if(s.data)  info+='<div><div class="l">Data do orçamento</div><b>'+esc(String(s.data).split('-').reverse().join('/'))+'</b></div>';
+    if(s.vend)  info+='<div><div class="l">Consultor</div><b>'+esc(s.vend)+'</b></div>';
+    document.getElementById('c-info').innerHTML=info;
+    var itens=(Array.isArray(s.itens)?s.itens:[]).filter(function(i){ return i && i.aprovado!==false; }); // riscados não aparecem para o cliente
+    var linha=function(it){ return '<div class="item"><div class="d">'+esc(it.descricao)+'<div class="q">'+(it.qtd||1)+'x · '+brl((it.total||0)/(it.qtd||1))+' un.</div></div><b>'+brl(it.total)+'</b></div>'; };
+    var prod=itens.filter(function(i){return i.tipo!=='servico';}).map(linha).join('');
+    var serv=itens.filter(function(i){return i.tipo==='servico';}).map(linha).join('');
+    document.getElementById('c-prod').innerHTML=prod||'<div class="item"><div class="d" style="color:#999">— sem peças —</div></div>';
+    document.getElementById('c-serv').innerHTML=serv||'<div class="item"><div class="d" style="color:#999">— sem serviços —</div></div>';
+    var sub=itens.reduce(function(t,i){return t+(Number(i.total)||0);},0);
+    var desc=Number(s.desconto)||0;
+    document.getElementById('c-sub').textContent=brl(sub);
+    if(desc>0){ document.getElementById('c-desc-lin').style.display='flex'; document.getElementById('c-desc').textContent='- '+brl(desc); }
+    document.getElementById('c-total').textContent=brl(s.val!=null?s.val:(sub-desc));
+    if(s.cond_pgto){ var p=document.getElementById('c-pgto'); p.style.display='block'; p.textContent='Condição de pagamento: '+s.cond_pgto; }
+    if(s.obs){ var ob=document.getElementById('c-obs'); ob.style.display='block'; ob.textContent='Observações: '+s.obs; }
+    if(d.expira_em){ document.getElementById('c-validade').textContent='Este link é válido até '+new Date(d.expira_em).toLocaleDateString('pt-BR')+'.'; }
+    mostrar('conteudo');
+  }catch(e){ indisponivel('Sem conexão','Não conseguimos carregar o orçamento. Verifique sua internet e tente de novo.'); }
+}
+
+async function autorizar(){
+  var nome=document.getElementById('f-nome').value.trim();
+  var cpf=document.getElementById('f-cpf').value.replace(/\D/g,'');
+  var erro=document.getElementById('f-erro');
+  erro.style.display='none';
+  var falha=function(m){ erro.textContent=m; erro.style.display='block'; };
+  if(nome.length<5 || nome.split(' ').length<2){ falha('Digite seu nome completo.'); return; }
+  if(cpf.length!==11){ falha('Digite o CPF completo (11 números).'); return; }
+  if(!document.getElementById('f-chk').checked){ falha('Marque a caixa confirmando que leu e autoriza o orçamento.'); return; }
+  var btn=document.getElementById('f-btn');
+  btn.disabled=true; btn.textContent='Registrando...';
+  try{
+    var r=await fetch(FN_URL, { method:'POST', headers:HDRS, body: JSON.stringify({ token:token, nome:nome, cpf:cpf }) });
+    var d=await r.json();
+    if(r.ok && d.ok){ mostrar('sucesso'); return; }
+    falha(d.error||'Não foi possível registrar. Tente de novo.');
+  }catch(e){ falha('Sem conexão. Verifique sua internet e tente de novo.'); }
+  btn.disabled=false; btn.textContent='✅ Autorizar orçamento';
+}
+
+carregar();
+</script>
+</body>
+</html>

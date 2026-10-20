@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Assinatura · Dias Centro Automotivo</title>
+<style>
+  :root{ --verm:#C8102E; --verm-d:#9E0C22; --preto:#111; --cinza:#666; --borda:#e6e6e6; --fundo:#f6f6f7; --verde:#1d7a4d; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--fundo);color:var(--preto);padding:16px;line-height:1.5}
+  .wrap{max-width:560px;margin:0 auto}
+  .topo{display:flex;align-items:center;gap:12px;background:#111;border-radius:14px;padding:16px 18px;margin-bottom:14px}
+  .topo img{height:40px}
+  .topo .t1{color:#fff;font-weight:800;font-size:16px;letter-spacing:.02em}
+  .topo .t2{color:#bbb;font-size:11.5px}
+  .card{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:18px;margin-bottom:12px}
+  .tag{display:inline-block;background:var(--verm);color:#fff;font-weight:800;font-size:11px;letter-spacing:.06em;padding:5px 12px;border-radius:999px;margin-bottom:10px}
+  h1{font-size:19px;margin-bottom:2px}
+  .sub{color:var(--cinza);font-size:13px}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-top:12px;font-size:13.5px}
+  .info .l{color:var(--cinza);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .sec{font-size:12px;font-weight:800;color:var(--verm);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #eee;padding-bottom:5px;margin:4px 0 8px}
+  .item{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #f2f2f2;font-size:13.5px}
+  .item:last-child{border-bottom:0}
+  .item .q{color:var(--cinza);font-size:11.5px}
+  .lin.tot{display:flex;justify-content:space-between;border-top:2px solid #111;margin-top:6px;padding-top:9px;font-size:17px;font-weight:900}
+  .decl{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px 14px;font-size:13px;color:#333;line-height:1.6;margin-top:10px}
+  label{display:block;font-size:12px;font-weight:700;margin:12px 0 4px}
+  input{width:100%;padding:13px 14px;border:1px solid #ccc;border-radius:10px;font-size:16px}
+  .pad{position:relative;border:2px dashed #bbb;border-radius:12px;background:#fff;touch-action:none;overflow:hidden}
+  .pad canvas{display:block;width:100%;height:180px}
+  .pad .dica{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:#bbb;font-size:13px;pointer-events:none}
+  .pad .linha{position:absolute;left:24px;right:24px;bottom:34px;border-top:1px solid #ddd;pointer-events:none}
+  .limpar{background:none;border:0;color:var(--verm);font-weight:700;font-size:12.5px;cursor:pointer;padding:6px 0}
+  .chk{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:13px;color:#333}
+  .chk input{width:22px;height:22px;flex-shrink:0;accent-color:var(--verde);margin-top:1px}
+  .btn{width:100%;padding:16px;border:0;border-radius:12px;background:var(--verde);color:#fff;font-size:16.5px;font-weight:800;cursor:pointer;letter-spacing:.02em}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .erro{background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;border-radius:10px;padding:11px 14px;font-size:13px;margin-top:10px;display:none}
+  .estado{ text-align:center;padding:34px 18px }
+  .estado .ic{font-size:44px;margin-bottom:10px}
+  .estado h2{font-size:18px;margin-bottom:6px}
+  .estado p{color:var(--cinza);font-size:13.5px}
+  .validade{font-size:12px;color:var(--cinza);text-align:center;margin:10px 0}
+  .rod{color:#999;font-size:11px;text-align:center;margin:16px 0 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topo">
+    <img src="logo-menu.png" alt="Dias Centro Automotivo" onerror="this.src='logo.png';this.onerror=function(){this.style.display='none'};">
+    <div><div class="t1">DIAS CENTRO AUTOMOTIVO</div><div class="t2">Av. João Mendes, 540 · Uberlândia/MG</div></div>
+  </div>
+
+  <div id="carregando" class="card estado"><div class="ic">🧾</div><h2>Carregando seu documento...</h2><p>Um instante.</p></div>
+
+  <div id="conteudo" style="display:none">
+    <div class="card">
+      <span class="tag" id="c-tag">VALE / AUTORIZAÇÃO DE DESCONTO</span>
+      <h1 id="c-num">Vale</h1>
+      <div class="sub" id="c-sub">Confira os dados e assine para registrar sua autorização.</div>
+      <div class="info" id="c-info"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Referente a</div>
+      <div id="c-desc" style="font-size:13.5px"></div>
+      <div class="sec" style="margin-top:14px">Como será descontado</div>
+      <div id="c-parc"></div>
+      <div class="lin tot"><span>Total</span><span id="c-total"></span></div>
+      <div class="decl" id="c-decl"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">Sua assinatura</div>
+      <label>Nome completo</label>
+      <input id="f-nome" autocomplete="name" placeholder="Digite seu nome completo">
+      <label id="l-cpf">CPF</label>
+      <input id="f-cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCpf(this)">
+      <label>Assine com o dedo (ou mouse) no quadro abaixo</label>
+      <div class="pad" id="pad"><canvas id="cv"></canvas><div class="dica" id="dica">assine aqui</div><div class="linha"></div></div>
+      <button class="limpar" onclick="limpar()">✕ limpar e assinar de novo</button>
+      <div class="chk"><input type="checkbox" id="f-chk"><span id="c-chk">Li o documento acima, confirmo que recebi / autorizei o lançamento e <b>AUTORIZO</b> a compensação conforme as parcelas descritas.</span></div>
+      <button class="btn" id="f-btn" onclick="assinar()">✍️ Assinar e autorizar desconto</button>
+      <div class="erro" id="f-erro"></div>
+      <div class="validade" id="c-validade"></div>
+    </div>
+  </div>
+
+  <div id="sucesso" class="card estado" style="display:none">
+    <div class="ic">✅</div><h2>Documento assinado!</h2>
+    <p>Sua assinatura foi registrada com data, hora e identificação.<br>O RH da Dias já tem o registro e a compensação seguirá conforme combinado.<br><br><b>Obrigado!</b></p>
+  </div>
+
+  <div id="indisponivel" class="card estado" style="display:none">
+    <div class="ic">⚠️</div><h2 id="ind-titulo">Link indisponível</h2>
+    <p id="ind-msg">Este link não está mais disponível. Fale com o RH da Dias para receber um novo.</p>
+  </div>
+
+  <div class="rod">Assinatura eletrônica registrada com nome, CPF, data, hora, endereço IP e aparelho (MP 2.200-2/2001 art. 10 §2º · Lei 14.063/2020) · Dias Centro Automotivo</div>
+</div>
+
+<script>
+const FN_URL = 'https://lprogvakqrhnpvekggld.supabase.co/functions/v1/assinar-vale';
+const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwcm9ndmFrcXJobnB2ZWtnZ2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MjI0MjgsImV4cCI6MjA5NTQ5ODQyOH0.UfbV-dRGDYx_Oe3VMQueQWEfo-_X-EEL12RdEZlhydo';
+const HDRS = { 'Authorization': 'Bearer ' + ANON, 'apikey': ANON, 'Content-Type': 'application/json' };
+const token = new URLSearchParams(location.search).get('t') || '';
+const brl = v => 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const compLbl=c=>{if(!c)return'';const[y,m]=c.split('-');return MESES[+m-1]+'/'+y};
+const dBr=d=>{if(!d)return'';const[y,m,dd]=String(d).slice(0,10).split('-');return dd+'/'+m+'/'+y};
+
+function mascaraCpf(el){
+  var v=el.value.replace(/\D/g,'').slice(0,11);
+  el.value = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/,'.$1-$2');
+}
+function mostrar(id){ ['carregando','conteudo','sucesso','indisponivel'].forEach(function(x){ document.getElementById(x).style.display = x===id?'block':'none'; }); }
+function indisponivel(t,m){ document.getElementById('ind-titulo').textContent=t; document.getElementById('ind-msg').textContent=m; mostrar('indisponivel'); }
+
+/* quadro de assinatura */
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d'), desenhando=false, tracos=0, ult=null;
+function ajustaCanvas(){
+  var r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  var img=tracos?cv.toDataURL():null;
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(180*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#111';
+  if(img){ var im=new Image(); im.onload=function(){ ctx.drawImage(im,0,0,r.width,180); }; im.src=img; }
+}
+function pos(e){ var r=cv.getBoundingClientRect(); var p=e.touches?e.touches[0]:e; return {x:p.clientX-r.left,y:p.clientY-r.top}; }
+function ini(e){ e.preventDefault(); desenhando=true; ult=pos(e); document.getElementById('dica').style.display='none'; }
+function mov(e){ if(!desenhando)return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(ult.x,ult.y); ctx.lineTo(p.x,p.y); ctx.stroke(); ult=p; tracos++; }
+function fim(){ desenhando=false; }
+cv.addEventListener('mousedown',ini); cv.addEventListener('mousemove',mov); window.addEventListener('mouseup',fim);
+cv.addEventListener('touchstart',ini,{passive:false}); cv.addEventListener('touchmove',mov,{passive:false}); cv.addEventListener('touchend',fim);
+window.addEventListener('resize',ajustaCanvas);
+function limpar(){ tracos=0; ctx.clearRect(0,0,cv.width,cv.height); document.getElementById('dica').style.display='block'; }
+function imgAssinatura(){
+  // recorta com fundo branco em tamanho reduzido p/ guardar leve
+  var out=document.createElement('canvas'); out.width=600; out.height=200;
+  var o=out.getContext('2d'); o.fillStyle='#fff'; o.fillRect(0,0,600,200); o.drawImage(cv,0,0,600,200);
+  return out.toDataURL('image/png');
+}
+
+async function carregar(){
+  if(!token){ indisponivel('Link inválido','Este endereço está incompleto. Abra o link exatamente como recebeu no WhatsApp.'); return; }
+  try{
+    var r=await fetch(FN_URL+'?t='+encodeURIComponent(token), { headers: HDRS });
+    var d=await r.json();
+    if(!r.ok){ indisponivel('Link inválido', d.error||'Link não encontrado. Fale com o RH.'); return; }
+    if(d.status==='assinado'){ mostrar('sucesso'); return; }
+    if(d.status==='expirado'){ indisponivel('Link expirado','O prazo deste link venceu. Peça um novo ao RH da Dias.'); return; }
+    if(d.status!=='pendente'){ indisponivel('Link indisponível','Este link foi cancelado. Peça um novo ao RH da Dias.'); return; }
+    var s=d.snapshot||{};
+    document.getElementById('c-num').textContent=(s.regime==='PJ'?'Nota de débito Nº ':(s.regime==='TESTE'?'Recibo Nº ':'Vale Nº '))+(s.num||'');
+    if(s.titulo){ document.getElementById('c-tag').textContent=s.titulo; }
+    if(s.sub){ document.getElementById('c-sub').textContent=s.sub+'. Confira os dados e assine.'; }
+    if(s.chk){ document.getElementById('c-chk').textContent=s.chk; }
+    if(s.regime==='PJ'){ document.getElementById('l-cpf').textContent='CPF do responsável que assina'; document.getElementById('f-btn').textContent='✍️ Assinar e autorizar compensação'; }
+    var info='';
+    info+='<div><div class="l">Colaborador</div><b>'+esc(s.nome)+'</b></div>';
+    if(s.cargo) info+='<div><div class="l">Função</div><b>'+esc(s.cargo)+'</b></div>';
+    if(s.tipo)  info+='<div><div class="l">Tipo</div><b>'+esc(s.tipo)+'</b></div>';
+    if(s.criado) info+='<div><div class="l">Lançado em</div><b>'+dBr(s.criado)+'</b></div>';
+    document.getElementById('c-info').innerHTML=info;
+    document.getElementById('c-desc').textContent=(s.desc||'')+(s.os?' (O.S. '+s.os+')':'');
+    var ps=Array.isArray(s.parcelas)?s.parcelas:[];
+    document.getElementById('c-parc').innerHTML=ps.map(function(p){ return '<div class="item"><div>Parcela '+p.n+'/'+ps.length+'<div class="q">'+esc(compLbl(p.comp))+'</div></div><b>'+brl(p.val)+'</b></div>'; }).join('')||'<div class="item"><div style="color:#999">desconto integral</div></div>';
+    document.getElementById('c-total').textContent=brl(s.valor);
+    document.getElementById('c-decl').innerHTML=s.decl?s.decl:'Eu, <b>'+esc(s.nome)+'</b>, declaro que recebi / autorizei o lançamento descrito acima, no valor total de <b>'+brl(s.valor)+'</b>, e <b>autorizo o desconto</b> '+(ps.length>1?'em <b>'+ps.length+' parcelas</b>':'integral')+' '+esc(s.onde||'')+', conforme tabela.';
+    if(d.expira_em){ document.getElementById('c-validade').textContent='Este link é válido até '+new Date(d.expira_em).toLocaleDateString('pt-BR')+'.'; }
+    mostrar('conteudo'); setTimeout(ajustaCanvas,50);
+  }catch(e){ indisponivel('Sem conexão','Não conseguimos carregar o vale. Verifique sua internet e tente de novo.'); }
+}
+
+async function assinar(){
+  var nome=document.getElementById('f-nome').value.trim();
+  var cpf=document.getElementById('f-cpf').value.replace(/\D/g,'');
+  var erro=document.getElementById('f-erro'); erro.style.display='none';
+  var falha=function(m){ erro.textContent=m; erro.style.display='block'; };
+  if(nome.length<5 || nome.split(' ').length<2){ falha('Digite seu nome completo.'); return; }
+  if(cpf.length!==11){ falha('Digite o CPF completo (11 números).'); return; }
+  if(tracos<8){ falha('Faça sua assinatura no quadro.'); return; }
+  if(!document.getElementById('f-chk').checked){ falha('Marque a caixa confirmando que autoriza o desconto.'); return; }
+  var btn=document.getElementById('f-btn'); btn.disabled=true; btn.textContent='Registrando...';
+  try{
+    var r=await fetch(FN_URL, { method:'POST', headers:HDRS, body: JSON.stringify({ token:token, nome:nome, cpf:cpf, assinatura:imgAssinatura() }) });
+    var d=await r.json();
+    if(r.ok && d.ok){ mostrar('sucesso'); return; }
+    falha(d.error||'Não foi possível registrar. Tente de novo.');
+  }catch(e){ falha('Sem conexão. Verifique sua internet e tente de novo.'); }
+  btn.disabled=false; btn.textContent='✍️ Assinar e autorizar';
+}
+carregar();
+</script>
+</body>
+</html>

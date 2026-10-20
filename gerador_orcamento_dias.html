@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orçamento Dias</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --verm:#C8102E; --verm-d:#9E0C22; --verm-cl:#FBE7EA;
+    --preto:#141414; --tinta:#222; --cinza:#666; --cinza3:#9a9a9a;
+    --linha:#e2e2e2; --cinza-cl:#F4F4F4; --verde:#1d7a4d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef0f3;color:var(--tinta);font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;font-size:14px}
+  .wrap{max-width:820px;margin:0 auto;padding:16px}
+  h1{font-size:19px;margin:0 0 2px;color:var(--preto)}
+  .sub{font-size:12.5px;color:var(--cinza);margin-bottom:14px}
+  .card{background:#fff;border:1px solid var(--linha);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  .sec{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--verm);margin:0 0 10px;border-bottom:2px solid var(--verm);padding-bottom:4px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:11px;font-weight:700;color:var(--cinza);margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
+  input,select,textarea{width:100%;padding:7px 9px;border:1px solid var(--linha);border-radius:7px;font-size:13px;font-family:inherit;background:#fff}
+  textarea{resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--verm)}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--cinza);text-align:left;padding:4px 6px;border-bottom:1px solid var(--linha)}
+  td{padding:3px 4px;vertical-align:middle}
+  .qt{width:56px;text-align:center}
+  .vl{width:104px;text-align:right}
+  .tt{width:104px;text-align:right;font-weight:700;padding-right:8px}
+  .cc{width:104px}
+  .custo-col{display:none}
+  #card-produtos.show-custos .custo-col{display:table-cell}
+  .custo-col input{border:1px solid #f0d98c;background:#fffbea}
+  .rm{cursor:pointer;color:var(--cinza3);font-weight:700;font-size:15px;padding:0 4px;border:0;background:none}
+  .rm:hover{color:var(--verm)}
+  .addbtn{margin-top:6px;font-size:12px;color:var(--verm);cursor:pointer;font-weight:700;background:none;border:0;padding:4px 0}
+  .subtot{text-align:right;font-size:13px;font-weight:800;padding:6px 8px 0;color:var(--preto)}
+  .rlin{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
+  .rlin.forte{font-size:16px;font-weight:900;border-top:1px solid var(--linha);margin-top:6px;padding-top:8px}
+  .rateio{font-size:12px;color:var(--cinza);margin-top:4px}
+  .pgto{margin-top:14px;background:var(--verm-cl);border:1px solid var(--verm);border-radius:12px;padding:14px 18px}
+  .pgto .pp{font-size:26px;font-weight:900;color:var(--verm-d);line-height:1.1}
+  .pgto .pd{font-size:12.5px;color:var(--verm-d);margin-top:3px}
+  .assin{display:flex;gap:40px;margin-top:26px;flex-wrap:wrap}
+  .assin .col{flex:1;min-width:220px;text-align:center}
+  .assin .ln{border-top:1px solid #333;padding-top:4px;font-size:11px;color:var(--cinza)}
+  .assin .nm{font-weight:700;color:var(--tinta);font-size:12px}
+  .rpt-head{display:none}
+  .acoes{display:flex;gap:10px;justify-content:center;margin:6px 0 28px;flex-wrap:wrap}
+  button.b{padding:11px 26px;border-radius:10px;font-size:14px;font-weight:800;letter-spacing:.03em;cursor:pointer;border:0}
+  .b-print{background:var(--verm);color:#fff}
+  .b-print:hover{background:var(--verm-d)}
+  /* coluna "aprovado pelo cliente" + item riscado (mesma lógica da tela resumida da Central) */
+  .ap{width:30px;text-align:center}
+  .ap input{width:18px;height:18px;cursor:pointer;accent-color:#1d7a4d;margin:0;padding:0}
+  tr.reprov{background:#fdeff0}
+  tr.reprov input.it,tr.reprov input.qtd,tr.reprov input.val,tr.reprov .tot{text-decoration:line-through;color:#9a9a9a}
+  .stbadge{display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:.03em;vertical-align:middle}
+  @media print{
+    @page{size:A4;margin:7mm}
+    .ap{display:none!important}
+    tr.reprov td,tr.reprov input{text-decoration:line-through;color:#999!important}
+    body{background:#fff;font-size:9pt}
+    .wrap{max-width:100%;padding:0}
+    .no-print,.addbtn,.rm,.acoes,.custo-col{display:none!important}
+    tr.print-vazia{display:none!important}
+    .card{border:0;padding:1px 0 2px;margin-bottom:2px;border-radius:0;border-bottom:.5px solid #eaeaea}
+    .rpt-head{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--verm);padding-bottom:3px;margin-bottom:4px}
+    .rpt-head .tit{font-size:14pt;font-weight:900;color:var(--preto);letter-spacing:.02em}
+    .rpt-head .emp{font-size:7.5pt;color:#777}
+    .rpt-head img{height:28px}
+    h1.screen,.sub{display:none}
+    label{font-size:7pt;margin-bottom:1px}
+    input,select,textarea{border:0!important;padding:0 2px;background:transparent;-webkit-appearance:none;appearance:none;font-size:9pt;color:#000;resize:none}
+    input::placeholder,textarea::placeholder{color:transparent!important;opacity:0!important}
+    select{padding-right:0}
+    .grid,.grid3{gap:4px 10px}
+    th{border-bottom:1px solid #999;padding:2px 5px;font-size:7pt}
+    td{border-bottom:.5px solid #f0f0f0;padding:2px 5px}
+    .sec{font-size:8pt;margin:0 0 3px;padding-bottom:2px}
+    .subtot{font-size:9pt;padding:1px 6px 0}
+    .rlin{font-size:8.5pt;padding:0}
+    .rlin.forte{font-size:10.5pt;margin-top:2px;padding-top:3px}
+    .rateio{font-size:7.5pt;margin-top:1px}
+    /* caixa de pagamento COMPACTA: uma linha só, sem ocupar altura */
+    .pgto{margin-top:4px;padding:4px 10px;border-radius:6px;display:flex;align-items:baseline;gap:10px}
+    .pgto .pp{font-size:11pt;line-height:1.2}
+    .pgto .pd{font-size:8pt;margin-top:0}
+    .assin{margin-top:10px;gap:30px}
+    .assin .ln{padding-top:2px;font-size:7.5pt}
+    .assin .nm{font-size:8.5pt}
+    .pgto{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="rpt-head">
+    <div><div class="tit">Orçamento</div><div class="emp">DIAS CENTRO AUTOMOTIVO LTDA · Av. João Mendes, 540 — Pampulha, Uberlândia/MG</div></div>
+    <img src="logo.png" alt="Dias">
+  </div>
+  <h1 class="screen">Orçamento Dias</h1>
+  <div class="sub">monte o orçamento, lance os itens e gere o PDF pro cliente</div>
+  <div id="edit-banner" class="no-print" style="display:none;background:#fff3cd;border:1px solid #e0a500;color:#9a6400;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px;font-weight:700"></div>
+
+  <div class="card">
+    <div class="sec">Orçamento</div>
+    <div class="grid3">
+      <div><label>Nº do orçamento (automático)</label><input id="o-num" readonly title="Numeração automática, não editável" style="background:#f2f2f2;color:#666;cursor:not-allowed"></div>
+      <div><label>Data</label><input id="o-data" type="date"></div>
+      <div class="no-print"><label>Consultor responsável</label>
+        <select id="o-vend" oninput="recalc()">
+          <option value="">— selecione —</option>
+          <option>CAIO FILIPE VILELA SILVA</option>
+          <option>MATHEUS SILVERIO DE SOUZA</option>
+          <option>RAPHAEL SOUSA RODRIGUES</option>
+          <option>SAMILLE GOES DE CARVALHO</option>
+          <option>JOSE CARDOSO VIEIRA NETO</option>
+        </select>
+      </div>
+      <div><label>Técnico responsável</label>
+        <select id="o-mec" onchange="recalc()">
+          <option value="">— selecione —</option>
+        </select>
+      </div>
+      <div><label>Previsão de Entrega (data e horário)</label>
+        <input id="o-prev-entrega" type="datetime-local">
+      </div>
+    </div>
+  </div>
+
+  <div class="card no-print" id="card-status">
+    <div class="sec">Status do orçamento <span id="st-badge" class="stbadge" style="margin-left:8px;background:#f0f1f3;color:#666">novo</span></div>
+    <div class="grid3">
+      <div><label>Status</label>
+        <select id="o-status" onchange="statusChanged()">
+          <option value="pendente">⏳ Pendente</option>
+          <option value="enviado">📤 Enviado ao Cliente</option>
+          <option value="fechado">✅ Fechado</option>
+          <option value="perdido">❌ Venda Perdida</option>
+        </select>
+      </div>
+      <div><label>Nº O.S. Oficina Inteligente</label><input id="o-os" placeholder="obrigatório ao aprovar"></div>
+      <div id="wrap-motivo" style="display:none"><label>Motivo da perda</label>
+        <select id="o-motivo" onchange="motivoChanged()">
+          <option value="">— Selecione —</option>
+          <option>Preço acima do esperado</option>
+          <option>Foi para a concorrência</option>
+          <option>Cliente desistiu do serviço</option>
+          <option>Sem condição financeira no momento</option>
+          <option>Não gostou do diagnóstico</option>
+          <option>Sem resposta / sumiu</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </div>
+      <div id="wrap-motivo-outro" class="full" style="display:none"><label>Descreva o motivo</label><input id="o-motivo-outro"></div>
+    </div>
+    <div id="st-info" style="font-size:12px;color:#777;margin-top:8px">O status é gravado junto com o botão <b>Salvar orçamento</b>. Para fechar a venda use <b>✅ Aprovar orçamento</b> (exige o Nº da O.S.).</div>
+  </div>
+
+  <div class="card">
+    <div class="sec">Cliente e veículo</div>
+    <div class="no-print" style="position:relative;margin-bottom:10px">
+      <input id="cli-busca" oninput="buscaCliente()" placeholder="🔎 Buscar cliente cadastrado por nome ou placa..." autocomplete="off">
+      <div id="cli-result" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--linha);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;max-height:260px;overflow:auto"></div>
+    </div>
+    <div class="grid">
+      <div><label>Nome do cliente</label><input id="c-nome" oninput="recalc()" placeholder="Nome completo"></div>
+      <div><label>CPF / CNPJ</label><input id="c-cpf" placeholder="000.000.000-00"></div>
+      <div><label>Telefone</label><input id="c-tel" placeholder="(34) 99999-9999"></div>
+      <div><label>Placa</label><input id="c-placa" placeholder="ABC1D23" style="text-transform:uppercase" onblur="buscarPlacaAPI()" onchange="buscarPlacaAPI()"></div>
+      <div class="full"><label>Endereço</label><input id="c-end" placeholder="Rua, número, bairro, cidade/UF"></div>
+      <div><label>Veículo</label><input id="c-veic" placeholder="Ex.: Soul EX 1.6"></div>
+      <div><label>Ano do veículo</label><input id="c-ano" placeholder="Ex.: 2020/2021"></div>
+      <div><label>KM</label><input id="c-km" placeholder="Ex.: 45000"></div>
+      <div class="full"><label>Observação</label><textarea id="c-obs" rows="2" placeholder="Ex.: peça sob encomenda, chega terça; combinado com o cliente..."></textarea></div>
+    </div>
+  </div>
+
+  <div class="card" id="card-produtos">
+    <div class="sec">Produtos</div>
+    <table><thead><tr><th class="ap no-print" title="Desmarque o que o cliente NÃO aprovou">✔</th><th>Descrição</th><th class="qt">Qtd</th><th class="vl">Vlr. un.</th><th class="tt">Total</th><th class="cc custo-col">Custo</th><th class="no-print"></th></tr></thead><tbody id="produtos"></tbody></table>
+    <div class="no-print" style="font-size:11px;color:#888;margin-top:4px">✔ desmarcado = item <b>não aprovado pelo cliente</b> (fica riscado e sai do total, mas o histórico permanece) · × = apagar item digitado errado</div>
+    <button class="addbtn no-print" onclick="addRow('produtos',true)">+ adicionar produto</button>
+    <button class="addbtn no-print" onclick="copiarProdutosWhats()" style="margin-left:14px">📋 copiar produtos p/ cotação (WhatsApp)</button>
+    <button type="button" class="addbtn no-print" onclick="toggleCustosItens()" id="btn-toggle-custos" style="margin-left:14px;border:1px solid #f0d98c;background:#fffbea;color:#8a6d00;padding:3px 10px;border-radius:6px;font-size:11px;text-transform:none;letter-spacing:0">Exibir custos dos itens</button>
+    <div class="subtot">Total produtos: <span id="tot-prod">R$ 0</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec">Serviços</div>
+    <table><thead><tr><th class="ap no-print" title="Desmarque o que o cliente NÃO aprovou">✔</th><th>Descrição</th><th class="qt">Qtd</th><th class="vl">Vlr. un.</th><th class="tt">Total</th><th class="no-print"></th></tr></thead><tbody id="servicos"></tbody></table>
+    <button class="addbtn no-print" onclick="addRow('servicos')">+ adicionar serviço</button>
+    <div class="subtot">Total serviços: <span id="tot-serv">R$ 0</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec">Resumo e pagamento</div>
+    <div class="rlin"><span>Produtos</span><span id="r-prod">R$ 0</span></div>
+    <div class="rlin"><span>Serviços</span><span id="r-serv">R$ 0</span></div>
+    <div class="rlin"><span>Subtotal</span><span id="r-sub">R$ 0</span></div>
+    <div class="rlin" id="r-rep-lin" style="display:none;color:#b91c1c"><span>Itens não aprovados (riscados, fora do total)</span><span id="r-rep-val">R$ 0</span></div>
+    <div class="rlin" id="r-desc-lin" style="display:none"><span>Desconto</span><span id="r-desc-val" style="color:#C8102E;font-weight:700">- R$ 0</span></div>
+    <div class="grid3 no-print" style="margin-top:12px">
+      <div><label>Desconto (R$)</label><input id="o-desc" type="number" min="0" step="0.01" value="0" oninput="recalc()"></div>
+      <div><label>Condição de pagamento</label>
+        <select id="o-cond" onchange="recalc()">
+          <option value="pix">Pix</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="debito">Cartão de débito</option>
+          <option value="credito">Cartão de crédito parcelado</option>
+          <option value="boleto">Boleto bancário</option>
+        </select>
+      </div>
+      <div id="wrap-vezes" style="display:none"><label>Parcelas no cartão</label>
+        <select id="o-vezes" onchange="recalc()"></select>
+      </div>
+      <div id="wrap-boleto" style="display:none"><label>Parcelas no boleto</label>
+        <select id="o-vezes-bol" onchange="recalc()">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+          <option value="4">4x</option>
+        </select>
+      </div>
+    </div>
+    <div class="rateio" id="r-rateio" style="display:none"></div>
+    <div class="rlin forte"><span>Total do orçamento</span><span id="r-total">R$ 0</span></div>
+    <div class="pgto"><div class="pp" id="p-parc">R$ 0</div><div class="pd" id="p-desc">à vista</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec">Autorização</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><label>Condição válida até</label><input id="c-validade" type="date"></div></div>
+    <div class="assin">
+      <div class="col"><div class="ln"><span class="nm" id="a-vend">—</span><br>Dias Centro Automotivo</div></div>
+      <div class="col"><div class="ln"><span class="nm" id="a-cli">—</span><br>Autorização do cliente</div></div>
+    </div>
+  </div>
+
+  <div class="acoes no-print">
+    <button class="b" id="btn-salvar" onclick="salvarOrcamento()" style="background:#1d7a4d;color:#fff">💾 Salvar orçamento</button>
+    <button class="b" id="btn-aprovar" onclick="aprovarOrcamentoGer()" style="background:#0b3d25;color:#fff;border:2px solid #19d36a">✅ Aprovar orçamento</button>
+    <button class="b" id="btn-linkaut" onclick="gerarLinkAut()" style="background:#111;color:#fff">🔗 Link p/ cliente autorizar</button>
+    <button class="b b-print" onclick="imprimir()">🖨️ Gerar orçamento / PDF</button>
+    <button class="b" onclick="relatorioServico()" style="background:#1f6fd6;color:#fff">🔧 Relatório de serviço</button>
+    <button class="b" onclick="abrirCotacaoPecas()" style="background:#8a6d00;color:#fff">📝 Cotação de peças (rascunho)</button>
+    <button class="b" onclick="limparTudo()" style="background:#eee;color:#333">🗑️ Limpar tudo</button>
+    <button class="b" id="btn-voltar" onclick="voltarResumo()" style="background:#fff;color:#111;border:2px solid #111;display:none">↩ Voltar ao resumo do orçamento</button>
+  </div>
+</div>
+
+<script>
+const brl = v => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+// Previsão de entrega: conversão entre <input type="datetime-local"> (hora local) e timestamptz (ISO/UTC) do banco
+function isoParaDtLocal(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d)) return ''; var p=function(n){ return String(n).padStart(2,'0'); }; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
+function dtLocalParaIso(v){ if(!v) return null; var d=new Date(v); return isNaN(d)?null:d.toISOString(); }
+function rowHTML(comCusto){
+  return '<tr>'
+    +'<td class="ap no-print"><input type="checkbox" class="apv" checked onchange="toggleAprov(this)" title="Desmarque se o cliente NÃO aprovou este item (fica riscado e sai do total)"></td>'
+    +'<td><input class="it" autocomplete="off" oninput="itemBusca(this)" onblur="setTimeout(fecharItemBox,200)" placeholder="Descrição do item"></td>'
+    +'<td><input class="qt qtd" type="number" min="0" step="1" value="1" oninput="recalc()"></td>'
+    +'<td><input class="vl val" type="number" min="0" step="0.01" value="0" oninput="recalc()"></td>'
+    +'<td class="tt tot">R$ 0,00</td>'
+    +(comCusto?'<td class="cc custo-col"><input class="custo" type="number" min="0" step="0.01" placeholder="0,00" oninput="recalcCusto()"></td>':'')
+    +'<td class="no-print"><button class="rm" onclick="removerItem(this)" title="Remover item">×</button></td>'
+    +'</tr>';
+}
+function addRow(id, comCusto){ document.getElementById(id).insertAdjacentHTML('beforeend', rowHTML(!!comCusto)); recalc(); }
+// Item NÃO aprovado pelo cliente: fica riscado e fora do total, mas continua no orçamento (histórico) — igual à tela resumida da Central
+function toggleAprov(cb){ var tr=cb.closest('tr'); if(!tr) return; tr.classList.toggle('reprov', !cb.checked); recalc(); }
+function marcarReprov(tr, reprov){ var cb=tr.querySelector('.apv'); if(cb) cb.checked=!reprov; tr.classList.toggle('reprov', !!reprov); }
+// Remoção de item SEMPRE pede confirmação (linha totalmente vazia sai direto, sem incomodar)
+function removerItem(btn){
+  var tr=btn.closest('tr'); if(!tr) return;
+  var desc=((tr.querySelector('.it')||{}).value||'').trim();
+  var val=parseFloat((tr.querySelector('.val')||{}).value)||0;
+  var vazia=!desc && val===0;
+  if(!vazia && !confirm('Deseja remover este item do orçamento?'+(desc?'\n\n• '+desc:''))) return;
+  tr.remove(); recalc();
+}
+function soma(id){
+  var tot=0;
+  document.querySelectorAll('#'+id+' tr').forEach(function(tr){
+    var q=parseFloat(tr.querySelector('.qtd').value)||0, v=parseFloat(tr.querySelector('.val').value)||0, t=q*v;
+    tr.querySelector('.tot').textContent=brl(t);
+    if(tr.classList.contains('reprov')) __repTot+=t; else tot+=t;
+  });
+  return tot;
+}
+var __repTot=0;
+// Mostra/esconde a coluna de custo por item (peças) — fica lembrado só durante a sessão da página
+function toggleCustosItens(){
+  var card=document.getElementById('card-produtos'); if(!card) return;
+  var on=card.classList.toggle('show-custos');
+  var btn=document.getElementById('btn-toggle-custos');
+  if(btn) btn.textContent = on ? 'Ocultar custos dos itens' : 'Exibir custos dos itens';
+}
+function recalc(){
+  __repTot=0;
+  var tp=soma('produtos'), ts=soma('servicos'), sub=tp+ts;
+  var rl=document.getElementById('r-rep-lin'); if(rl){ rl.style.display=__repTot>0?'flex':'none'; var rv=document.getElementById('r-rep-val'); if(rv) rv.textContent=brl(__repTot); }
+  document.getElementById('tot-prod').textContent=brl(tp);
+  document.getElementById('tot-serv').textContent=brl(ts);
+  document.getElementById('r-prod').textContent=brl(tp);
+  document.getElementById('r-serv').textContent=brl(ts);
+  document.getElementById('r-sub').textContent=brl(sub);
+  var desc=parseFloat(document.getElementById('o-desc').value)||0; if(desc>sub) desc=sub;
+  var total=sub-desc;
+  // linha de desconto no resumo (aparece na tela e na impressão quando houver desconto)
+  var dlin=document.getElementById('r-desc-lin');
+  if(dlin){ dlin.style.display = desc>0?'flex':'none'; var dval=document.getElementById('r-desc-val'); if(dval) dval.textContent='- '+brl(desc); }
+  // rateio proporcional do desconto
+  var rat=document.getElementById('r-rateio');
+  if(desc>0 && sub>0){
+    var dp=desc*(tp/sub), dsv=desc-dp;
+    rat.style.display='block';
+    rat.innerHTML='Desconto de '+brl(desc)+' rateado: '+brl(dp)+' em produtos, '+brl(dsv)+' em serviços.';
+  } else { rat.style.display='none'; }
+  document.getElementById('r-total').textContent=brl(total);
+  // condição de pagamento
+  var cond=document.getElementById('o-cond').value;
+  var wrapV=document.getElementById('wrap-vezes'); wrapV.style.display = cond==='credito' ? 'block' : 'none';
+  var wrapB=document.getElementById('wrap-boleto'); wrapB.style.display = cond==='boleto' ? 'block' : 'none';
+  var parc=document.getElementById('p-parc'), pdes=document.getElementById('p-desc');
+  if(cond==='credito'){
+    var n=parseInt(document.getElementById('o-vezes').value)||1;
+    parc.textContent=n+'x de '+brl(total/n);
+    pdes.textContent='cartão de crédito · '+n+'x sem juros · total '+brl(total);
+  } else if(cond==='boleto'){
+    var nb=parseInt(document.getElementById('o-vezes-bol').value)||1;
+    parc.textContent = nb>1 ? nb+'x de '+brl(total/nb) : brl(total);
+    pdes.textContent='boleto bancário · '+(nb>1?nb+'x sem juros · total '+brl(total):'à vista');
+  } else {
+    parc.textContent=brl(total);
+    var nome = cond==='pix'?'Pix':(cond==='dinheiro'?'dinheiro':'cartão de débito');
+    pdes.textContent='à vista no '+nome;
+  }
+  // Assinatura da empresa: nome do VENDEDOR (consultor), com "Dias Centro Automotivo" embaixo
+  document.getElementById('a-vend').textContent=document.getElementById('o-vend').value||'—';
+  document.getElementById('a-cli').textContent=document.getElementById('c-nome').value||'—';
+  recalcCusto();
+}
+// Custo interno (Bruno/compras): somado item a item (coluna Custo na tabela de Produtos) — nunca sai no PDF.
+function somaCustoItens(){
+  var tot=0, algum=false;
+  document.querySelectorAll('#produtos .custo').forEach(function(inp){
+    if(inp.value!==''){ algum=true; tot+=parseFloat(inp.value)||0; }
+  });
+  return { tot: tot, algum: algum };
+}
+function recalcCusto(){
+  var custoTotEl=document.getElementById('o-custo-total');
+  var mEl=document.getElementById('o-margem'); if(!mEl||!custoTotEl) return;
+  var r=somaCustoItens();
+  var total=parseFloat((document.getElementById('r-total').textContent||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
+  if(!r.algum){ custoTotEl.textContent='—'; mEl.textContent='—'; return; }
+  custoTotEl.textContent=brl(r.tot);
+  var margem=total-r.tot;
+  var pct=total>0?(margem/total*100):0;
+  mEl.textContent=brl(margem)+' ('+pct.toFixed(1).replace('.',',')+'%)';
+}
+// Rascunho de cotações agora vive em cotacao_pecas.html (aba própria, campo grande + impressão)
+function abrirCotacaoPecas(){
+  if(!window.EDIT_ID){ alert('Salve o orçamento primeiro (💾 Salvar orçamento). Depois abra a Cotação de peças.'); return; }
+  window.open('cotacao_pecas.html?id='+window.EDIT_ID, '_blank');
+}
+function imprimir(){
+  var n=(document.getElementById('c-nome').value||'').trim(), num=(document.getElementById('o-num').value||'').trim();
+  // padrão: ORC_<número>_<primeiro nome + primeiro sobrenome>
+  var tks=n.toUpperCase().split(/\s+/).filter(Boolean), part=['DE','DA','DO','DAS','DOS','E'];
+  var pn=tks[0]||'', ps=''; for(var i2=1;i2<tks.length;i2++){ if(part.indexOf(tks[i2])<0){ ps=tks[i2]; break; } }
+  var nomeArq='ORC_'+(num||'')+(pn?'_'+pn+(ps?' '+ps:''):'');
+  document.title=nomeArq;
+  // quando o gerador roda dentro da Central (iframe), o PDF usa o título da página principal — ajusta e restaura depois
+  var topTitle=null;
+  try{ if(window.top!==window.self){ topTitle=window.top.document.title; window.top.document.title=nomeArq; } }catch(e){}
+  // Tira os textos de exemplo (placeholder) para não saírem no PDF quando o campo está vazio
+  var campos=document.querySelectorAll('input[placeholder],textarea[placeholder]');
+  var salvos=[];
+  campos.forEach(function(el){ salvos.push([el, el.getAttribute('placeholder')||'']); el.setAttribute('placeholder',''); });
+  // Economia de papel: linhas de item VAZIAS não saem na impressão
+  var vazias=[];
+  document.querySelectorAll('#produtos tr, #servicos tr').forEach(function(tr){
+    var it=tr.querySelector('.it');
+    if(it && !it.value.trim()){ tr.classList.add('print-vazia'); vazias.push(tr); }
+  });
+  window.print();
+  setTimeout(function(){
+    salvos.forEach(function(p){ p[0].setAttribute('placeholder', p[1]); });
+    vazias.forEach(function(tr){ tr.classList.remove('print-vazia'); });
+    try{ if(topTitle!==null){ window.top.document.title=topTitle; } }catch(e){}
+  }, 400);
+}
+
+// ── LINK DE AUTORIZAÇÃO DIGITAL (cliente autoriza pelo celular) ──
+async function gerarLinkAut(){
+  if(!supa){ alert('Sem conexão com o banco.'); return; }
+  if(!window.EDIT_ID){ alert('Salve o orçamento primeiro (💾 Salvar orçamento). Depois gere o link.'); return; }
+  var dias=parseInt(prompt('Validade do link em dias:','7'))||0;
+  if(dias<=0) return;
+  var num=(document.getElementById('o-num').value||'').trim();
+  var nome=(document.getElementById('c-nome').value||'').trim();
+  var itens=soAprovados(coletaItens('produtos','produto').concat(coletaItens('servicos','servico')));
+  var tp=0,ts=0; itens.forEach(function(it){ if(it.tipo==='produto') tp+=it.total; else ts+=it.total; });
+  var desc=parseFloat(document.getElementById('o-desc').value)||0;
+  var snapshot={ num:num, cli:nome, placa:(document.getElementById('c-placa').value||'').trim().toUpperCase(),
+    vend:document.getElementById('o-vend').value||'', data:document.getElementById('o-data').value||'',
+    itens:itens, desconto:desc, val:(tp+ts)-desc,
+    cond_pgto:(document.getElementById('o-cond').selectedOptions[0].text+' · '+document.getElementById('p-parc').textContent),
+    obs:(document.getElementById('c-obs').value||'').trim() };
+  var hash='';
+  try{ var buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(snapshot))); hash=[...new Uint8Array(buf)].map(function(b){return b.toString(16).padStart(2,'0');}).join(''); }catch(e){}
+  var token=(crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):String(Date.now())+Math.random().toString(36).slice(2))+Math.random().toString(36).slice(2,10);
+  var expira=new Date(Date.now()+dias*24*60*60*1000).toISOString();
+  var ins=await supa.from('aceites_orcamento').insert({ orcamento_id:window.EDIT_ID, orcamento_num:num, token:token, snapshot:snapshot, hash:hash, expira_em:expira });
+  if(ins.error){ console.error(ins.error); alert('Erro ao gerar o link: '+(ins.error.message||'')); return; }
+  // enviou para assinatura → status vira "Enviado ao Cliente" (só se ainda estava pendente)
+  var stSelL=document.getElementById('o-status'), virouEnv=false;
+  if(stSelL && stSelL.value==='pendente'){
+    var up=await supa.from('orcamentos').update({status:'enviado'}).eq('id',window.EDIT_ID).eq('status','pendente').select('id');
+    if(!up.error && up.data && up.data.length){ virouEnv=true; window.__orcStatus='enviado'; stSelL.value='enviado'; try{ statusChanged(); }catch(e){} atualizarBadgeStatus('enviado'); }
+  }
+  try{ await supa.rpc('orc_add_followup', { p_id: window.EDIT_ID, p_entry: {
+    data: (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(new Date()),
+    data_hora: new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    vend: document.getElementById('o-vend').value||'SISTEMA',
+    txt: '🔗 Link de autorização digital gerado no valor de '+brl(snapshot.val)+' · válido até '+new Date(expira).toLocaleDateString('pt-BR')+(virouEnv?' · status alterado para ENVIADO AO CLIENTE':'') } }); }catch(e){ console.warn('follow-up do link:', e); }
+  avisaCentral({tipo:'dca-orc-salvo', id:window.EDIT_ID});
+  var link='https://central.diascentroautomotivo.com.br/autorizar.html?t='+token;
+  var validadeBR=new Date(expira).toLocaleDateString('pt-BR');
+  var msg='Olá'+(nome?' '+nome.split(' ')[0]:'')+'! Aqui é da Dias Centro Automotivo. 😊\n\nSegue o orçamento Nº '+num+' ('+brl(snapshot.val)+') para você conferir e AUTORIZAR de forma digital, direto pelo link abaixo:\n\n'+link+'\n\nO link é válido até '+validadeBR+'. Qualquer dúvida estou à disposição!';
+  var copiou=false;
+  try{ await navigator.clipboard.writeText(msg); copiou=true; }catch(e){}
+  var b=document.getElementById('edit-banner');
+  if(b){ b.style.display='block'; b.style.background='#e7f6ee'; b.style.borderColor='#1d7a4d'; b.style.color='#15663f';
+    b.innerHTML='🔗 Link de autorização gerado (válido até '+validadeBR+')'+(copiou?' · <b>mensagem copiada, é só colar no WhatsApp</b>':'')+':<br><input readonly value="'+link+'" onclick="this.select();document.execCommand(\'copy\')" style="width:100%;margin-top:6px;padding:8px;border:1px solid #1d7a4d;border-radius:8px;font-size:12px;background:#fff">'; }
+  if(!copiou){ prompt('Copie o link de autorização:', link); }
+}
+// ── Conexão com o banco (mesma sessão da Central, mesmo domínio) ──
+const SB_URL='https://lprogvakqrhnpvekggld.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwcm9ndmFrcXJobnB2ZWtnZ2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MjI0MjgsImV4cCI6MjA5NTQ5ODQyOH0.UfbV-dRGDYx_Oe3VMQueQWEfo-_X-EEL12RdEZlhydo';
+var supa = (window.supabase) ? window.supabase.createClient(SB_URL, SB_KEY) : null;
+
+async function calcProximoNumero(){
+  // número calculado no banco: não depende de baixar todos os orçamentos (funciona com qualquer volume)
+  var rpc=await supa.rpc('proximo_num_orcamento');
+  if(!rpc.error && rpc.data) return String(rpc.data);
+  // fallback (se a função não existir no banco)
+  var r=await supa.from('orcamentos').select('num').limit(3000);
+  var mx=2999; (r.data||[]).forEach(function(o){ var n=parseInt(o.num); if(!isNaN(n)&&n>mx) mx=n; });
+  return String(mx+1);
+}
+async function proximoNumero(){
+  if(!supa) return;
+  try{ document.getElementById('o-num').value=await calcProximoNumero(); }catch(e){ console.error(e); }
+}
+// ── CONSULTA AUTOMÁTICA DA PLACA (API Placas, com cache no servidor) ──
+var __ultimaPlacaBuscada='';
+async function buscarPlacaAPI(){
+  var el=document.getElementById('c-placa'); if(!el||!supa) return;
+  var placa=(el.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placa)) return;
+  if(placa===__ultimaPlacaBuscada) return; // evita repetir a mesma busca
+  __ultimaPlacaBuscada=placa;
+  var veic=document.getElementById('c-veic'), ano=document.getElementById('c-ano');
+  var ph=veic.placeholder; veic.placeholder='🔎 buscando dados da placa...';
+  try{
+    var s=await supa.auth.getSession();
+    var tk=(s.data&&s.data.session)?s.data.session.access_token:null;
+    if(!tk){ veic.placeholder=ph; return; }
+    var r=await fetch('https://lprogvakqrhnpvekggld.supabase.co/functions/v1/consulta-placa?placa='+placa,
+      { headers:{ 'Authorization':'Bearer '+tk, 'apikey': SB_KEY } });
+    var d=await r.json().catch(function(){return null;});
+    if(r.ok && d && d.veiculo){
+      veic.value=d.veiculo;
+      if(ano){ ano.value=(d.ano&&d.anoModelo&&d.ano!==d.anoModelo)?(d.ano+'/'+d.anoModelo):(d.anoModelo||d.ano||''); }
+    } else if(d && d.error){ console.warn('Consulta placa:', d.error); }
+  }catch(e){ console.error(e); }
+  finally{ veic.placeholder=ph; }
+}
+
+var buscaTO;
+function buscaCliente(){
+  clearTimeout(buscaTO);
+  buscaTO=setTimeout(async function(){
+    var t=document.getElementById('cli-busca').value.trim();
+    var box=document.getElementById('cli-result');
+    if(t.length<2 || !supa){ box.style.display='none'; return; }
+    try{
+      var r=await supa.from('clientes').select('nome,telefone,documento,placa,veiculo,bairro,cidade,uf').or('nome.ilike.%'+t+'%,placa.ilike.%'+t.toUpperCase()+'%').limit(8);
+      var rows=r.data||[]; window.__cli=rows;
+      box.innerHTML = rows.length ? rows.map(function(c,i){ return '<div onclick="pickCliente('+i+')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #eee;font-size:12.5px"><b>'+(c.nome||'')+'</b> · '+(c.telefone||'')+(c.placa?(' · '+c.placa):'')+'</div>'; }).join('') : '<div style="padding:8px 10px;color:#999;font-size:12px">nenhum cliente encontrado</div>';
+      box.style.display='block';
+    }catch(e){ console.error(e); box.style.display='none'; }
+  }, 300);
+}
+function pickCliente(i){
+  var c=(window.__cli||[])[i]; if(!c) return;
+  document.getElementById('c-nome').value=c.nome||'';
+  document.getElementById('c-tel').value=c.telefone||'';
+  document.getElementById('c-cpf').value=c.documento||'';
+  document.getElementById('c-placa').value=c.placa||'';
+  document.getElementById('c-veic').value=c.veiculo||'';
+  document.getElementById('c-end').value=[c.bairro,c.cidade].filter(Boolean).join(', ')+(c.uf?(' / '+c.uf):'');
+  document.getElementById('cli-result').style.display='none';
+  buscarPlacaAPI(); // completa veículo e ano pela placa (API com cache)
+  document.getElementById('cli-busca').value='';
+  recalc();
+}
+var itbTO, itbInput, itbBox;
+function itemBusca(inp){
+  itbInput=inp; clearTimeout(itbTO);
+  itbTO=setTimeout(async function(){
+    var t=inp.value.trim();
+    if(t.length<2 || !supa){ fecharItemBox(); return; }
+    try{
+      var tipoFiltro = inp.closest('#servicos') ? 'servico' : (inp.closest('#produtos') ? 'produto' : null);
+      var q=supa.from('catalogo').select('descricao,preco,tipo').ilike('descricao','%'+t+'%');
+      if(tipoFiltro){ q=q.eq('tipo', tipoFiltro); }
+      var r=await q.limit(8);
+      var rows=r.data||[]; if(!rows.length){ fecharItemBox(); return; }
+      window.__itens=rows;
+      if(!itbBox){ itbBox=document.createElement('div'); itbBox.style.cssText='position:absolute;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:60;max-height:220px;overflow:auto;font-size:12.5px'; document.body.appendChild(itbBox); }
+      var rc=inp.getBoundingClientRect();
+      itbBox.style.left=(rc.left+window.scrollX)+'px'; itbBox.style.top=(rc.bottom+window.scrollY+2)+'px'; itbBox.style.minWidth=rc.width+'px';
+      itbBox.innerHTML=rows.map(function(c,i){ return '<div onmousedown="pickItem('+i+')" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #eee">'+(c.tipo==='servico'?'🔧':'📦')+' '+c.descricao+' <b style="float:right;margin-left:12px">R$ '+(c.preco||0)+'</b></div>'; }).join('');
+      itbBox.style.display='block';
+    }catch(e){ fecharItemBox(); }
+  },250);
+}
+function pickItem(i){
+  var c=(window.__itens||[])[i]; if(!c||!itbInput) return;
+  itbInput.value=c.descricao;
+  var tr=itbInput.closest('tr'); if(tr){ tr.querySelector('.val').value=(c.preco||0); }
+  fecharItemBox(); recalc();
+}
+function fecharItemBox(){ if(itbBox) itbBox.style.display='none'; }
+function copiarProdutosWhats(){
+  var num=(document.getElementById('o-num').value||'').trim();
+  var placa=(document.getElementById('c-placa').value||'').trim().toUpperCase();
+  var prods=soAprovados(coletaItens('produtos','produto'));
+  if(!prods.length){ alert('Nenhum produto lançado ainda.'); return; }
+  var msg='Cotação de peças · Orçamento Nº '+num+(placa?(' · Placa '+placa):'')+'\n\n';
+  prods.forEach(function(it,i){ msg+=(i+1)+'. '+it.descricao+' — Qtd: '+(it.qtd||1)+'\n'; });
+  var feito=function(){ var b=document.getElementById('edit-banner'); if(b){ b.style.display='block'; b.style.background='#e7f6ee'; b.style.borderColor='#1d7a4d'; b.style.color='#15663f'; b.textContent='📋 Produtos copiados! Cole na conversa do WhatsApp com o fornecedor.'; } else { alert('Produtos copiados!'); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(msg).then(feito).catch(function(){ prompt('Copie a lista abaixo:', msg); });
+  } else { prompt('Copie a lista abaixo:', msg); }
+}
+function coletaItens(id,tipo){
+  var arr=[];
+  document.querySelectorAll('#'+id+' tr').forEach(function(tr){
+    var d=(tr.querySelector('.it').value||'').trim(); var q=parseFloat(tr.querySelector('.qtd').value)||0; var v=parseFloat(tr.querySelector('.val').value)||0;
+    if(!d) return;
+    var item={tipo:tipo,descricao:d,qtd:q,unit:v,total:q*v};
+    if(tr.classList.contains('reprov')) item.aprovado=false;
+    var custoEl=tr.querySelector('.custo');
+    if(custoEl && custoEl.value!=='') item.custo=parseFloat(custoEl.value)||0;
+    arr.push(item);
+  });
+  return arr;
+}
+function soAprovados(arr){ return (arr||[]).filter(function(it){ return it.aprovado!==false; }); }
+async function salvarOrcamento(){
+  if(!supa){ alert('Sem conexão com o banco.'); return; }
+  // Orçamento FECHADO continua editável por QUALQUER vendedor (regra de 06/07/2026):
+  // a trava de segurança é o Nº da O.S. do Oficina Inteligente, conferido depois no ERP.
+  var nome=(document.getElementById('c-nome').value||'').trim();
+  var vend=document.getElementById('o-vend').value;
+  if(!nome){ alert('Preencha o nome do cliente.'); return false; }
+  if(!vend){ alert('Selecione o consultor responsável.'); return false; }
+  var st=(document.getElementById('o-status')||{}).value||'pendente';
+  var osNum=((document.getElementById('o-os')||{}).value||'').trim();
+  if(st==='fechado' && !osNum){ alert('Para marcar como Fechado, preencha o Nº da O.S. do Oficina Inteligente (ou use o botão ✅ Aprovar orçamento).'); try{ document.getElementById('o-os').focus(); }catch(e){} return false; }
+  if(st==='perdido' && !getMotivoGer()){ alert('Informe o motivo da perda.'); return false; }
+  var btn=document.getElementById('btn-salvar'); btn.disabled=true; btn.textContent='Salvando...';
+  try{
+    if(!window.EDIT_ID){ await proximoNumero(); }
+    var num=document.getElementById('o-num').value;
+    var itens=coletaItens('produtos','produto').concat(coletaItens('servicos','servico'));
+    // totais só com os itens APROVADOS (riscados ficam no registro, mas fora do valor)
+    var tp=0,ts=0; itens.forEach(function(it){ if(it.aprovado===false) return; if(it.tipo==='produto') tp+=it.total; else ts+=it.total; });
+    var desc=parseFloat(document.getElementById('o-desc').value)||0; if(desc>(tp+ts)) desc=tp+ts;
+    var total=Math.round(((tp+ts)-desc)*100)/100;
+    var base={ cli: nome,
+      tel:(document.getElementById('c-tel').value||'').trim(),
+      placa:(document.getElementById('c-placa').value||'').trim().toUpperCase(),
+      veiculo:(document.getElementById('c-veic').value||'').trim(),
+      vend: vend, mecanico:(document.getElementById('o-mec').value||''),
+      data: document.getElementById('o-data').value||null,
+      previsao_entrega: dtLocalParaIso(document.getElementById('o-prev-entrega')?document.getElementById('o-prev-entrega').value:''),
+      val: total, obs:(document.getElementById('c-obs').value||'').trim(),
+      itens: itens, produtos_total: tp, servicos_total: ts, desconto: desc,
+      cond_pgto: (document.getElementById('o-cond').selectedOptions[0].text+' · '+document.getElementById('p-parc').textContent),
+      custo: (function(){ var r=somaCustoItens(); return r.algum?r.tot:null; })(),
+      status: st, os_erp: osNum, motivo_perda: (st==='perdido'?getMotivoGer():'') };
+    if(st==='fechado'){
+      // aprovado_em só na 1ª vez (reedição de fechado não muda o mês do fechamento) — mesma regra da Central
+      base.aprovado_em = window.__aprovadoEm || new Date().toISOString();
+      base.valor_aprovado = total;
+    }
+      // notas_cotacao NÃO entra aqui de propósito: o rascunho é salvo só pela aba Cotação de Peças (evita sobrescrever)
+    if(window.EDIT_ID){
+      var upd=await supa.from('orcamentos').update(base).eq('id', window.EDIT_ID);
+      if(upd.error) throw upd.error;
+      btn.textContent='✅ Atualizado · Nº '+num;
+    } else {
+      var reg=Object.assign({ id:Date.now(), num:num, status:'pendente', deleted:false, origem:'Central' }, base);
+      var ins=await supa.from('orcamentos').insert(reg);
+      if(ins.error) throw ins.error;
+      // Depois de salvar, passa a MODO EDIÇÃO deste registro — evita que um novo clique em Salvar duplique o orçamento
+      window.EDIT_ID=reg.id; window.__orcStatus='pendente';
+      var eb=document.getElementById('edit-banner'); if(eb){ eb.style.display='block'; eb.textContent='✅ Orçamento Nº '+num+' salvo. Novos cliques em Salvar atualizam este mesmo orçamento (não cria outro).'; }
+      btn.textContent='✅ Salvo · Nº '+num;
+    }
+    window.__orcStatus=st; if(base.aprovado_em) window.__aprovadoEm=base.aprovado_em;
+    atualizarBadgeStatus();
+    avisaCentral({tipo:'dca-orc-salvo', id:window.EDIT_ID});
+    setTimeout(function(){ btn.disabled=false; btn.textContent='💾 Salvar orçamento'; },2500);
+    return true;
+  }catch(e){ console.error(e); alert('Erro ao salvar: '+(e.message||e)); btn.disabled=false; btn.textContent='💾 Salvar orçamento'; return false; }
+}
+// ── STATUS na tela de edição (antes só existia na tela resumida da Central) ──
+function statusChanged(){
+  var st=(document.getElementById('o-status')||{}).value||'pendente';
+  var wm=document.getElementById('wrap-motivo'); if(wm) wm.style.display = st==='perdido'?'block':'none';
+  if(st!=='perdido'){ var wo=document.getElementById('wrap-motivo-outro'); if(wo) wo.style.display='none'; }
+  else motivoChanged();
+  atualizarBadgeStatus(st);
+}
+function motivoChanged(){
+  var sel=(document.getElementById('o-motivo')||{}).value||'';
+  var wo=document.getElementById('wrap-motivo-outro'); if(wo) wo.style.display = sel==='Outro'?'block':'none';
+}
+function getMotivoGer(){
+  var sel=(document.getElementById('o-motivo')||{}).value||'';
+  if(sel==='Outro'){ var t=((document.getElementById('o-motivo-outro')||{}).value||'').trim(); return t?'Outro: '+t:'Outro'; }
+  return sel;
+}
+function setMotivoGer(m){
+  var sel=document.getElementById('o-motivo'), out=document.getElementById('o-motivo-outro'); if(!sel) return;
+  m=m||'';
+  if(m.indexOf('Outro')===0){ sel.value='Outro'; if(out) out.value=m.replace(/^Outro:?\s*/,''); }
+  else { sel.value=m; if(out) out.value=''; if(sel.value!==m) sel.value=''; }
+}
+function atualizarBadgeStatus(st){
+  var b=document.getElementById('st-badge'); if(!b) return;
+  st=st||(document.getElementById('o-status')||{}).value||'';
+  var salvo=!!window.EDIT_ID;
+  var map={pendente:['⏳ PENDENTE','#fff3cd','#9a6400'],enviado:['📤 ENVIADO AO CLIENTE','#e8f1fc','#1f6fd6'],fechado:['✅ FECHADO','#e7f6ee','#15663f'],perdido:['❌ VENDA PERDIDA','#fdeff0','#b91c1c']};
+  var m=map[st]||['NOVO','#f0f1f3','#666'];
+  b.textContent=(salvo?'':'novo · ')+m[0]; b.style.background=m[1]; b.style.color=m[2];
+}
+// ── APROVAR direto daqui (mesma regra da tela resumida): exige O.S., itens desmarcados ficam riscados,
+//    oferece orçamento adicional com o que o cliente não aprovou e o Relatório de Serviço.
+async function aprovarOrcamentoGer(){
+  if(!supa){ alert('Sem conexão com o banco.'); return; }
+  var osNum=((document.getElementById('o-os')||{}).value||'').trim();
+  if(!osNum){ alert('Para aprovar, preencha o Nº da O.S. do Oficina Inteligente (card Status do orçamento).'); try{ document.getElementById('o-os').focus(); document.getElementById('card-status').scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} return; }
+  var todos=coletaItens('produtos','produto').concat(coletaItens('servicos','servico'));
+  if(!todos.length){ alert('Lance ao menos um item antes de aprovar.'); return; }
+  var rep=todos.filter(function(it){ return it.aprovado===false; });
+  var valRep=rep.reduce(function(s,it){ return s+(it.total||0); },0);
+  var num=document.getElementById('o-num').value||'';
+  if(!confirm('Aprovar o orçamento'+(num?' Nº '+num:'')+' com os itens marcados?'+(rep.length?'\n\n'+rep.length+' item(ns) desmarcado(s) ('+brl(valRep)+') ficam registrados como NÃO aprovados (riscados).':''))) return;
+  var sel=document.getElementById('o-status'); if(sel){ sel.value='fechado'; statusChanged(); }
+  var ok=await salvarOrcamento();
+  if(!ok){ return; }
+  var b=document.getElementById('edit-banner');
+  if(b){ b.style.display='block'; b.style.background='#e7f6ee'; b.style.borderColor='#1d7a4d'; b.style.color='#15663f'; b.textContent='✅ Orçamento Nº '+num+' aprovado (O.S. '+osNum+').'; }
+  if(rep.length && confirm('Deseja gerar orçamento adicional dos itens não aprovados?\n\n'+rep.length+' item(ns) · '+brl(valRep)+'.')){
+    try{
+      var nn=await calcProximoNumero();
+      var repLimpo=rep.map(function(it){ var c=Object.assign({},it); delete c.aprovado; return c; });
+      var reg={ id:Date.now(), num:String(nn), status:'pendente', deleted:false, origem:'Central', orcamento_pai:String(num),
+        cli:(document.getElementById('c-nome').value||'').trim(), tel:(document.getElementById('c-tel').value||'').trim(),
+        placa:(document.getElementById('c-placa').value||'').trim().toUpperCase(), veiculo:(document.getElementById('c-veic').value||'').trim(),
+        vend:document.getElementById('o-vend').value||'', mecanico:(document.getElementById('o-mec')||{}).value||'',
+        data:ymd(new Date()), val:valRep, desconto:0, obs:'Itens não aprovados do orçamento Nº '+num, itens:repLimpo,
+        produtos_total:repLimpo.filter(function(i){return i.tipo==='produto';}).reduce(function(s,i){return s+i.total;},0),
+        servicos_total:repLimpo.filter(function(i){return i.tipo==='servico';}).reduce(function(s,i){return s+i.total;},0) };
+      var ins=await supa.from('orcamentos').insert(reg);
+      if(ins.error) throw ins.error;
+      if(b) b.textContent='✅ Orçamento Nº '+num+' aprovado (O.S. '+osNum+'). Orçamento Nº '+nn+' criado (pendente) com os itens não aprovados.';
+      avisaCentral({tipo:'dca-orc-salvo', id:window.EDIT_ID});
+    }catch(e){ console.error(e); alert('Aprovado, mas não consegui criar o orçamento adicional: '+(e.message||e)); }
+  }
+  try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){}
+  setTimeout(function(){ if(confirm('Gerar o Relatório de Serviço para o mecânico (uso interno)?')) relatorioServico(); }, 300);
+}
+// Volta para a tela resumida (modal) do orçamento na Central sem precisar procurar de novo na lista
+function voltarResumo(){
+  avisaCentral({tipo:'dca-voltar-modal', id:window.EDIT_ID||null});
+}
+function avisaCentral(msg){
+  try{ if(window.parent && window.parent!==window) window.parent.postMessage(msg, location.origin); }catch(e){}
+}
+var __edToken=0; // se o usuário pedir pra editar OUTRO orçamento antes deste terminar de carregar, o mais antigo é descartado (nunca mostra o orçamento errado)
+async function carregarEdicao(id){
+  if(!supa) return;
+  var meuToken=++__edToken;
+  try{
+    var r=await supa.from('orcamentos').select('*').eq('id',id).maybeSingle();
+    if(meuToken!==__edToken) return;
+    var o=r.data; if(!o) return;
+    window.EDIT_ID=id;
+    window.__orcStatus=o.status||'';
+    window.__aprovadoEm=o.aprovado_em||null;
+    var stSel=document.getElementById('o-status'); if(stSel){ stSel.value=o.status||'pendente'; if(!stSel.value) stSel.value='pendente'; }
+    var osEl=document.getElementById('o-os'); if(osEl) osEl.value=o.os_erp||'';
+    setMotivoGer(o.motivo_perda||'');
+    statusChanged();
+    document.getElementById('o-num').value=o.num||'';
+    document.getElementById('o-data').value=o.data||'';
+    document.getElementById('o-vend').value=o.vend||'';
+    carregarMecanicos(o.mecanico||'');
+    var pe=document.getElementById('o-prev-entrega'); if(pe) pe.value=isoParaDtLocal(o.previsao_entrega);
+    document.getElementById('c-nome').value=o.cli||'';
+    document.getElementById('c-tel').value=o.tel||'';
+    document.getElementById('c-placa').value=o.placa||'';
+    document.getElementById('c-veic').value=o.veiculo||'';
+    if(o.placa) __ultimaPlacaBuscada=String(o.placa).toUpperCase().replace(/[^A-Z0-9]/g,''); // não re-consulta a placa ao editar (já temos o veículo salvo)
+    document.getElementById('c-obs').value=o.obs||'';
+    document.getElementById('o-desc').value=o.desconto||0;
+    // Restaura a CONDIÇÃO DE PAGAMENTO salva (antes voltava sempre pra "à vista no Pix")
+    if(o.cond_pgto){
+      var cp=String(o.cond_pgto), cond='pix';
+      if(/d[ée]bito/i.test(cp)) cond='debito';
+      else if(/cr[ée]dito/i.test(cp)) cond='credito';
+      else if(/boleto/i.test(cp)) cond='boleto';
+      else if(/dinheiro/i.test(cp)) cond='dinheiro';
+      var selC=document.getElementById('o-cond'); if(selC) selC.value=cond;
+      var mParc=cp.match(/(\d+)\s*x/i);
+      if(mParc){
+        if(cond==='credito'){ var vz2=document.getElementById('o-vezes'); if(vz2) vz2.value=mParc[1]; }
+        if(cond==='boleto'){ var vb2=document.getElementById('o-vezes-bol'); if(vb2) vb2.value=mParc[1]; }
+      }
+    }
+    var prod=document.getElementById('produtos'), serv=document.getElementById('servicos');
+    prod.innerHTML=''; serv.innerHTML='';
+    var temCusto=false;
+    // ANTES os itens não aprovados eram descartados aqui e sumiam ao Salvar (perdia o histórico).
+    // Agora entram riscados (desmarcados) e continuam gravados, igual à tela resumida.
+    (o.itens||[]).forEach(function(it){
+      var ehServico=it.tipo==='servico';
+      var tb=ehServico?serv:prod;
+      tb.insertAdjacentHTML('beforeend', rowHTML(!ehServico));
+      var tr=tb.lastElementChild;
+      if(it.aprovado===false) marcarReprov(tr, true);
+      tr.querySelector('.it').value=it.descricao||'';
+      tr.querySelector('.qtd').value=it.qtd||1;
+      tr.querySelector('.val').value=it.unit||0;
+      if(!ehServico && it.custo!=null){ var ci=tr.querySelector('.custo'); if(ci){ ci.value=it.custo; temCusto=true; } }
+    });
+    prod.insertAdjacentHTML('beforeend', rowHTML(true));
+    serv.insertAdjacentHTML('beforeend', rowHTML(false));
+    if(temCusto || (o.custo!=null)){
+      var cardP=document.getElementById('card-produtos');
+      if(cardP && !cardP.classList.contains('show-custos')) toggleCustosItens();
+    }
+    var b=document.getElementById('edit-banner'); if(b){ b.style.display='block'; b.style.background='#fff3cd'; b.style.borderColor='#e0a500'; b.style.color='#9a6400'; b.textContent='✏️ Editando o orçamento Nº '+(o.num||'')+'. Inclua ou exclua itens e clique em Salvar orçamento.'; }
+    atualizarBadgeStatus();
+    // Garante o botão Salvar SEMPRE habilitado — a trava antiga "só gestor altera fechado" foi
+    // removida (regra de 06/07/2026): qualquer vendedor pode editar; o controle é o Nº da O.S.
+    var sb=document.getElementById('btn-salvar'); if(sb){ sb.disabled=false; sb.style.opacity=''; sb.style.cursor=''; }
+    if(o.status==='fechado' && b){
+      b.style.background='#eef2ff'; b.style.borderColor='#c7d2fe'; b.style.color='#3730a3';
+      b.innerHTML='✅ Orçamento Nº '+(o.num||'')+' já aprovado — dá pra editar itens e <b>Salvar</b> normalmente. Se o valor mudar, gere um novo <b>Link p/ cliente autorizar</b> (a nova assinatura substitui a anterior). O Nº da O.S. é o controle no Oficina Inteligente.';
+    }
+    recalc();
+  }catch(e){ console.error(e); }
+}
+var ADMIN_EMAILS=['tulio@diascentroautomotivo.com.br','tulio.diasf@gmail.com'];
+async function ehGestor(){
+  try{ var u=await supa.auth.getUser(); var em=((u&&u.data&&u.data.user&&u.data.user.email)||'').toLowerCase(); return ADMIN_EMAILS.indexOf(em)>=0; }
+  catch(e){ return false; }
+}
+function relatorioServico(){
+  var esc=function(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); };
+  function coleta(id){ var out=[]; document.querySelectorAll('#'+id+' tr').forEach(function(tr){ if(tr.classList.contains('reprov')) return; var d=(tr.querySelector('.it').value||'').trim(); var q=parseFloat(tr.querySelector('.qtd').value)||0; if(d) out.push({d:d,q:q}); }); return out; }
+  var serv=coleta('servicos'), prod=coleta('produtos');
+  if(!serv.length && !prod.length){ alert('Lance ao menos um item para gerar o relatório do mecânico.'); return; }
+  var num=document.getElementById('o-num').value||'';
+  var dataV=document.getElementById('o-data').value; var dataBR=dataV?dataV.split('-').reverse().join('/'):'';
+  var cli=(document.getElementById('c-nome').value||'').trim();
+  var placa=(document.getElementById('c-placa').value||'').trim().toUpperCase();
+  var veic=(document.getElementById('c-veic').value||'').trim();
+  var mec=(document.getElementById('o-mec')?document.getElementById('o-mec').value:'')||'';
+  var pe=document.getElementById('o-prev-entrega'); var peVal=pe?pe.value:''; var peBR='';
+  if(peVal){ var d=new Date(peVal); if(!isNaN(d)) peBR=d.toLocaleDateString('pt-BR')+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  var linhas=function(arr){ return arr.length?arr.map(function(it){ return '<tr><td>'+esc(it.d)+'</td><td class="q">'+(it.q||1)+'</td><td class="c"></td></tr>'; }).join(''):'<tr><td colspan="3" class="vazio">— sem itens —</td></tr>'; };
+  var base=location.href.replace(/[^/]*$/,'');
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de Serviço Nº '+esc(num)+'</title>'
+    +'<style>@page{size:A4;margin:9mm}'
+    +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px 22px;font-size:11px}'
+    +'.top{display:flex;align-items:center;gap:12px;border-bottom:2.5px solid #C8102E;padding-bottom:9px}'
+    +'.top img{height:38px}.top .t1{font-size:16px;font-weight:800;letter-spacing:.5px}.top .t2{font-size:10.5px;color:#555}'
+    +'.tag{margin-left:auto;background:#111;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:6px}'
+    +'.info{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin:12px 0 6px;font-size:12px}'
+    +'.info b{color:#000}.info .l{color:#666;font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}'
+    +'h2{font-size:11.5px;margin:13px 0 4px;color:#C8102E;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;padding-bottom:3px}'
+    +'table{width:100%;border-collapse:collapse;font-size:11.5px}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #e5e5e5}'
+    +'th{background:#f4f4f4;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#444}'
+    +'th.q,td.q{width:52px;text-align:center}th.c,td.c{width:58px;text-align:center}td.c{border-left:1px solid #e5e5e5}'
+    +'.vazio{color:#999;font-style:italic}'
+    +'.ass{margin-top:28px;display:flex;gap:40px}.ass .col{flex:1;text-align:center;border-top:1px solid #999;padding-top:5px;font-size:11px;color:#555}'
+    +'.rod{margin-top:16px;font-size:9.5px;color:#999;text-align:center}'
+    +'@media print{body{padding:0}.tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+    +'</style></head><body>'
+    +'<div class="top"><img src="'+base+'logo.png" onerror="this.style.display=\'none\'"><div><div class="t1">DIAS CENTRO AUTOMOTIVO</div><div class="t2">Ordem de execução interna</div></div><div class="tag">RELATÓRIO DE SERVIÇO</div></div>'
+    +'<div class="info">'
+    +'<div><div class="l">Nº do orçamento</div><b>'+esc(num)+'</b></div>'
+    +'<div><div class="l">Data</div><b>'+esc(dataBR)+'</b></div>'
+    +'<div><div class="l">Cliente</div><b>'+esc(cli||'—')+'</b></div>'
+    +'<div><div class="l">Placa</div><b>'+esc(placa||'—')+'</b></div>'
+    +'<div><div class="l">Veículo</div><b>'+esc(veic||'—')+'</b></div>'
+    +'<div><div class="l">Técnico responsável</div><b>'+esc(mec||'—')+'</b></div>'
+    +'<div><div class="l">O.S. Oficina Inteligente</div><b>—</b></div>'
+    +(peBR?'<div><div class="l">Previsão de Entrega</div><b>'+esc(peBR)+'</b></div>':'')
+    +'</div>'
+    +'<h2>Serviços a executar</h2><table><thead><tr><th>Descrição</th><th class="q">Qtd</th><th class="c">OK</th></tr></thead><tbody>'+linhas(serv)+'</tbody></table>'
+    +'<h2>Peças a aplicar</h2><table><thead><tr><th>Descrição</th><th class="q">Qtd</th><th class="c">OK</th></tr></thead><tbody>'+linhas(prod)+'</tbody></table>'
+    +'<div class="ass"><div class="col">Mecânico</div><div class="col">Conferência / Qualidade</div></div>'
+    +'<div class="rod">Documento interno · sem valores · Central Dias</div>'
+    +'<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>'
+    +'</body></html>';
+  var w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o relatório.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+function limparTudo(){
+  if(!confirm('Apagar tudo e começar um orçamento novo?')) return;
+  novoEmBranco(true);
+}
+// Zera o formulário por completo (usado pelo "Limpar tudo" e pela Central ao clicar em Novo Orçamento).
+// buscarNumero=false quando um orçamento vai ser carregado logo em seguida (edição) — evita a corrida
+// do proximoNumero() sobrescrever o número do orçamento carregado.
+function novoEmBranco(buscarNumero){
+  window.EDIT_ID=null; window.__orcStatus=''; window.__aprovadoEm=null;
+  var stSel=document.getElementById('o-status'); if(stSel) stSel.value='pendente';
+  var osEl=document.getElementById('o-os'); if(osEl) osEl.value='';
+  setMotivoGer(''); statusChanged();
+  var b=document.getElementById('edit-banner'); if(b){ b.style.display='none'; b.textContent=''; b.style.background='#fff3cd'; b.style.borderColor='#e0a500'; b.style.color='#9a6400'; }
+  var sbc=document.getElementById('btn-salvar'); if(sbc){ sbc.disabled=false; sbc.style.opacity=''; sbc.style.cursor=''; sbc.textContent='💾 Salvar orçamento'; }
+  ['c-nome','c-tel','c-placa','c-obs','c-veic','c-ano','c-km','c-end','c-cpf'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
+  __ultimaPlacaBuscada='';
+  document.getElementById('o-vend').value='';
+  if(document.getElementById('o-mec')) document.getElementById('o-mec').value='';
+  if(document.getElementById('o-prev-entrega')) document.getElementById('o-prev-entrega').value='';
+  document.getElementById('o-desc').value=0;
+  var cardP=document.getElementById('card-produtos');
+  if(cardP && cardP.classList.contains('show-custos')) toggleCustosItens();
+  prefixVendedor();
+  if(document.getElementById('o-cond')) document.getElementById('o-cond').selectedIndex=0;
+  var vz1=document.getElementById('o-vezes'); if(vz1) vz1.value='1';
+  var vb1=document.getElementById('o-vezes-bol'); if(vb1) vb1.value='1';
+  var d=new Date(); document.getElementById('o-data').value=ymd(d); setValidade30();
+  document.getElementById('produtos').innerHTML=''; document.getElementById('servicos').innerHTML='';
+  for(var i=0;i<3;i++){ document.getElementById('produtos').insertAdjacentHTML('beforeend', rowHTML(true)); }
+  for(var j=0;j<3;j++){ document.getElementById('servicos').insertAdjacentHTML('beforeend', rowHTML(false)); }
+  recalc();
+  document.getElementById('o-num').value='';
+  if(buscarNumero!==false) proximoNumero();
+}
+var USUARIOS_MAP = {
+  'tulio@diascentroautomotivo.com.br':'TULIO DIAS',
+  'tulio.diasf@gmail.com':'TULIO DIAS',
+  'vendas01@diascentroautomotivo.com.br':'CAIO FILIPE VILELA SILVA',
+  'vendas02@diascentroautomotivo.com.br':'MATHEUS SILVERIO DE SOUZA',
+  'vendas03@diascentroautomotivo.com.br':'RAPHAEL SOUSA RODRIGUES',
+  'joseneto@diascentroautomotivo.com.br':'JOSE CARDOSO VIEIRA NETO',
+  'caio@diascentroautomotivo.com.br':'CAIO FILIPE VILELA SILVA',
+  'samille@diascentroautomotivo.com.br':'SAMILLE GOES DE CARVALHO',
+  'contato@diascentroautomotivo.com.br':'SAMILLE GOES DE CARVALHO'
+};
+async function prefixVendedor(){
+  try{
+    var u=await supa.auth.getUser();
+    var em=((u&&u.data&&u.data.user&&u.data.user.email)||'').toLowerCase();
+    var nome=USUARIOS_MAP[em]; if(!nome) return;
+    var sel=document.getElementById('o-vend');
+    if(sel.value) return;
+    for(var i=0;i<sel.options.length;i++){ if((sel.options[i].value||sel.options[i].text)===nome){ sel.selectedIndex=i; break; } }
+    recalc();
+  }catch(e){}
+}
+async function carregarMecanicos(sel){
+  try{
+    var el=document.getElementById('o-mec');
+    // Se as opções já foram carregadas (ex.: trocando de orçamento pela ponte com a Central),
+    // não duplica a lista — só seleciona o técnico pedido.
+    if(el.getAttribute('data-carregado')==='1'){ el.value=sel||''; recalc(); return; }
+    var r=await supa.from('tecnicos').select('nome,ordem,ativo').order('ordem');
+    (r.data||[]).forEach(function(t){ if(t.ativo!==false){ el.insertAdjacentHTML('beforeend','<option>'+t.nome+'</option>'); } });
+    el.setAttribute('data-carregado','1');
+    if(sel){ el.value=sel; recalc(); }
+  }catch(e){}
+}
+function ymd(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function setValidade30(){ var v=document.getElementById('c-validade'); if(v){ var d=new Date(); d.setDate(d.getDate()+30); v.value=ymd(d); } }
+function init(){
+  var d=new Date(); document.getElementById('o-data').value=ymd(d);
+  setValidade30();
+  document.getElementById('o-num').value='3000';
+  var vz=document.getElementById('o-vezes'); for(var k=1;k<=10;k++){ vz.insertAdjacentHTML('beforeend','<option value="'+k+'">'+k+'x</option>'); }
+  var editId=new URLSearchParams(location.search).get('edit');
+  if(editId){ carregarEdicao(editId); }
+  else {
+    for(var i=0;i<3;i++){ document.getElementById('produtos').insertAdjacentHTML('beforeend', rowHTML(true)); }
+    for(var j=0;j<3;j++){ document.getElementById('servicos').insertAdjacentHTML('beforeend', rowHTML(false)); }
+    recalc(); proximoNumero();
+    carregarMecanicos(); prefixVendedor();
+  }
+  try{ if(window.parent && window.parent!==window){ var bv=document.getElementById('btn-voltar'); if(bv) bv.style.display=''; } }catch(e){}
+  atualizarBadgeStatus();
+  avisaCentralPronto();
+}
+
+// ── PONTE COM A CENTRAL (index.html) ──
+// A Central troca de orçamento / abre um novo SEM recarregar o iframe pela rede: manda uma
+// mensagem e o formulário se limpa/carrega na hora. Isso resolve dois bugs de campo:
+//   1. "Novo Orçamento às vezes vem com os dados do orçamento anterior" — o recarregamento por
+//      rede demorava (ou falhava, tela cinza quebrada) e o documento antigo continuava visível.
+//   2. Recarregar por rede a cada clique dependia do servidor responder sempre — agora só a
+//      primeira carga usa a rede; o resto é instantâneo.
+window.addEventListener('message', function(ev){
+  if(ev.origin!==location.origin) return; // só aceita comando da própria Central (mesmo domínio)
+  var d=ev&&ev.data; if(!d||typeof d!=='object') return;
+  if(d.tipo==='dca-novo'){
+    novoEmBranco(true);
+    try{ window.scrollTo(0,0); }catch(e){}
+  } else if(d.tipo==='dca-edit' && d.id){
+    novoEmBranco(false);            // limpa TUDO antes (inclusive CPF/ano/km/endereço, que a edição não preenche)
+    carregarEdicao(d.id);
+    try{ window.scrollTo(0,0); }catch(e){}
+  }
+});
+// Avisa a Central que o gerador carregou — ela usa isso pra saber que pode mandar mensagens
+// (e pra detectar quando o iframe NÃO carregou e tentar de novo sozinha).
+function avisaCentralPronto(){
+  try{ if(window.parent && window.parent!==window) window.parent.postMessage({tipo:'dca-gerador-pronto'}, location.origin); }catch(e){}
+}
+init();
+</script>
+</body>
+</html>

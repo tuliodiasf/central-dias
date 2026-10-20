@@ -1,0 +1,14 @@
+# Site estático, sem build: publica a raiz do repositório.
+[build]
+  publish = "."
+
+# Navegador sempre busca a versão nova das telas (equivale ao .htaccess no-cache da HostGator)
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

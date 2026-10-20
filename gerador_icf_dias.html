@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório ICF Dias</title>
+<style>
+  /* ─── TOKENS ─────────────────────────────────────────────── */
+  :root {
+    --azul:     #C8102E;
+    --azul-md:  #9E0C22;
+    --azul-cl:  #FBE7EA;
+    --cinza:    #595959;
+    --cinza-cl: #F2F2F2;
+    --verde:    #2E7D32;
+    --amarelo:  #B7950B;
+    --verm:     #C0392B;
+    --borda:    #BFBFBF;
+    --accent:   #FBE7EA;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #E8EDF4;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+
+  /* ─── PAINEL DE FORMULÁRIO ──────────────────────────────── */
+  #painel {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(31,56,100,.15);
+    width: 100%;
+    max-width: 640px;
+    padding: 32px 36px 28px;
+    margin-bottom: 24px;
+  }
+
+  #painel h1 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--azul);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  #painel p.sub {
+    font-size: 12px;
+    color: var(--cinza);
+    margin-bottom: 24px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--azul);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  input[type="text"],
+  input[type="number"],
+  input[type="date"] {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--borda);
+    border-radius: 6px;
+    font-size: 13px;
+    color: #222;
+    transition: border-color .15s;
+    font-family: Arial, sans-serif;
+  }
+  input:focus { outline: none; border-color: var(--azul-md); }
+
+  /* ─── CAMPO TRANSMITÂNCIA ───────────────────────────────── */
+  .t-wrap { position: relative; }
+  .t-wrap input { padding-right: 36px; font-size: 16px; font-weight: 700; }
+  .t-wrap span.pct {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px; font-weight: 700; color: var(--cinza);
+  }
+
+  /* ─── BADGE ICF ─────────────────────────────────────────── */
+  #badge {
+    margin-top: 18px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: .02em;
+    display: none;
+    transition: background .2s;
+  }
+  #badge.bom    { background: #E8F5E9; color: var(--verde); border: 2px solid var(--verde); }
+  #badge.atenc  { background: #FFF8E1; color: var(--amarelo); border: 2px solid var(--amarelo); }
+  #badge.troca  { background: #FFEBEE; color: var(--verm); border: 2px solid var(--verm); }
+
+  /* ─── RECOMENDAÇÕES ─────────────────────────────────────── */
+  .rec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    margin-top: 6px;
+  }
+  .rec-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: #333;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1.5px solid var(--borda);
+    transition: border-color .15s, background .15s;
+    user-select: none;
+  }
+  .rec-item:hover { border-color: var(--azul-md); background: var(--accent); }
+  .rec-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--azul); flex-shrink: 0; }
+  .rec-km {
+    width: 70px; padding: 3px 6px;
+    border: 1px solid var(--borda); border-radius: 4px;
+    font-size: 12px; font-family: Arial;
+  }
+
+  /* ─── BOTÃO ─────────────────────────────────────────────── */
+  button#gerar {
+    margin-top: 24px;
+    width: 100%;
+    padding: 13px;
+    background: var(--azul);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button#gerar:hover { background: var(--azul-md); }
+
+  /* ─── ÁREA DE IMPRESSÃO ─────────────────────────────────── */
+  #preview {
+    display: none;
+    width: 210mm;
+    background: #fff;
+    padding: 12mm 14mm 10mm;
+    box-shadow: 0 4px 32px rgba(0,0,0,.18);
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-family: Arial, sans-serif;
+    color: #222;
+  }
+
+  /* cabeçalho do relatório */
+  .rpt-header {
+    background: #fff;
+    color: #111;
+    text-align: center;
+    padding: 4px 12px 8px;
+    margin-bottom: 8px;
+    border-bottom: 2.5px solid var(--azul);
+  }
+  .rpt-header img { height: 42px; display: block; margin: 0 auto 3px; }
+  .rpt-header p  { font-size: 7.5pt; color: #777; margin-top: 2px; }
+  .rpt-title {
+    text-align: center;
+    font-size: 10pt;
+    font-weight: 800;
+    color: var(--azul);
+    letter-spacing: .04em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  /* seções */
+  .sec-label {
+    font-size: 7.5pt;
+    font-weight: 800;
+    color: var(--azul);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    border-bottom: 1.5px solid var(--azul);
+    padding-bottom: 2px;
+    margin: 9px 0 5px;
+  }
+
+  /* tabela de dados */
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl td {
+    border: 1px solid var(--borda);
+    padding: 4px 7px;
+    font-size: 8pt;
+    vertical-align: middle;
+  }
+  .tbl td.lbl { background: var(--cinza-cl); font-weight: 700; width: 22%; }
+  .tbl td.val { width: 28%; }
+
+  /* resultado ICF */
+  .icf-row {
+    display: flex; gap: 8px; margin-top: 4px;
+  }
+  .icf-box {
+    flex: 1;
+    border: 1px solid var(--borda);
+    padding: 6px 10px;
+    background: var(--azul-cl);
+  }
+  .icf-box .icf-lbl { font-size: 7pt; font-weight: 700; color: var(--azul); }
+  .icf-box .icf-val { font-size: 16pt; font-weight: 800; text-align: center; margin-top: 2px; }
+  .icf-box.resultado .icf-val { font-size: 11pt; }
+
+  /* escala */
+  .escala { width: 100%; border-collapse: collapse; }
+  .escala td { border: 1px solid var(--borda); padding: 3.5px 7px; font-size: 7.5pt; }
+  .escala .hd { background: var(--cinza-cl); font-weight: 700; }
+  .verde  { color: var(--verde);   font-weight: 700; }
+  .amar   { color: var(--amarelo); font-weight: 700; }
+  .verm   { color: var(--verm);    font-weight: 700; }
+
+  /* recomendações */
+  .rec-print { font-size: 7.5pt; }
+  .rec-print .rec-line {
+    display: flex; align-items: baseline; gap: 5px;
+    padding: 2.5px 0;
+    border-bottom: .5px solid #E0E0E0;
+  }
+  .rec-print .chk { font-size: 9pt; line-height: 1; }
+
+  /* metodologia + disclaimer */
+  .small-text { font-size: 7pt; color: var(--cinza); line-height: 1.45; }
+  .box-gray {
+    background: var(--cinza-cl);
+    border: 1px solid var(--borda);
+    padding: 5px 8px;
+    margin-top: 4px;
+  }
+
+  /* assinatura */
+  .assinatura { margin-top: 14px; text-align: center; }
+  .assinatura img { height: 48px; display: block; margin: 0 auto -6px; }
+  .assin-line { border-top: 1px solid #333; width: 240px; margin: 4px auto 0; padding-top: 4px; }
+  .assinatura-texto { border-top: 1px solid #333; padding-top: 3px; font-size: 7pt; color: var(--cinza); }
+  .assinatura-texto strong { display: block; font-size: 8pt; color: #222; margin-bottom: 1px; }
+
+  /* botão imprimir */
+  #btn-imprimir {
+    display: block;
+    margin: 16px auto 0;
+    padding: 11px 32px;
+    background: var(--verde);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 210mm;
+  }
+  #btn-imprimir:hover { background: #1B5E20; }
+
+  /* ─── PRINT ─────────────────────────────────────────────── */
+  /* fotos */
+  .foto-thumb {
+    width: 90mm;
+    max-height: 55mm;
+    object-fit: cover;
+    border: 1px solid var(--borda);
+    border-radius: 3px;
+  }
+  .foto-label { font-size: 6.5pt; color: var(--cinza); margin-top: 2px; text-align:center; }
+
+  @media print {
+    body { background: none; padding: 0; }
+    #painel, #btn-imprimir { display: none !important; }
+    #preview {
+      display: block !important;
+      box-shadow: none;
+      width: 100%;
+      padding: 10mm 12mm 8mm;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ FORMULÁRIO ═══════════════ -->
+<div id="painel">
+  <h1>Gerador de Relatório ICF Dias</h1>
+  <p class="sub">Preencha os dados abaixo e clique em Gerar Relatório.</p>
+
+  <div class="form-grid">
+    <div class="full">
+      <label>Nome do Cliente</label>
+      <input type="text" id="f-nome" placeholder="Ex.: João Paulo Mendes">
+    </div>
+
+    <div>
+      <label>Veículo / Modelo</label>
+      <input type="text" id="f-veiculo" placeholder="Ex.: Honda HR-V 2021">
+    </div>
+
+    <div>
+      <label>Data</label>
+      <input type="date" id="f-data">
+    </div>
+
+    <div>
+      <label>Placa</label>
+      <input type="text" id="f-placa" placeholder="Ex.: ABC1D23" maxlength="8">
+    </div>
+
+    <div>
+      <label>Quilometragem</label>
+      <input type="number" id="f-km" placeholder="Ex.: 65000" min="0">
+    </div>
+
+    <div class="full">
+      <label>Transmitância medida (%)</label>
+      <div class="t-wrap">
+        <input type="number" id="f-trans" placeholder="Ex.: 67" min="0" max="100" oninput="calcICF()">
+        <span class="pct">%</span>
+      </div>
+      <div id="badge"></div>
+    </div>
+
+    <div class="full">
+      <label>Recomendação Técnica — marque as aplicáveis</label>
+      <div class="rec-grid">
+        <label class="rec-item">
+          <input type="checkbox" id="r1"> Manter o fluido atual.
+        </label>
+        <label class="rec-item">
+          <input type="checkbox" id="r2">
+          Reavaliar em <input type="number" id="r2km" class="rec-km" placeholder="km" min="0"> km.
+        </label>
+        <label class="rec-item">
+          <input type="checkbox" id="r3"> Substituição preventiva do fluido.
+        </label>
+        <label class="rec-item">
+          <input type="checkbox" id="r4"> Inspeção complementar da transmissão.
+        </label>
+        <label class="rec-item">
+          <input type="checkbox" id="r5"> Diagnóstico eletrônico.
+        </label>
+        <label class="rec-item">
+          <input type="checkbox" id="r6"> Desmontagem para investigação.
+        </label>
+      </div>
+    </div>
+  </div>
+
+
+    <div class="full">
+      <label>Fotos da Análise do Fluido (máx. 3)</label>
+      <input type="file" id="f-fotos" accept="image/*" multiple style="
+        width:100%; padding:9px 12px; border:1.5px solid var(--borda);
+        border-radius:6px; font-size:12px; font-family:Arial; cursor:pointer;
+        background:#FAFAFA; color:#444;">
+      <p style="font-size:10px;color:var(--cinza);margin-top:4px">
+        Ex.: foto do fluido retirado, comparativo com fluido novo, estado da sonda.
+      </p>
+      <div id="preview-fotos" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"></div>
+    </div>
+
+  <button id="gerar" onclick="gerarRelatorio()">Gerar Relatório</button>
+</div>
+
+<!-- ═══════════════ RELATÓRIO (impressão) ═══════════════ -->
+<div id="preview">
+
+  <div class="rpt-header">
+    <img src="logo.png" alt="Dias Centro Automotivo">
+    <p>Av. João Mendes, 540 — Pampulha, Uberlândia/MG</p>
+  </div>
+
+  <div class="rpt-title">Relatório de Inspeção do Fluido da Transmissão — ICF Dias</div>
+
+  <!-- DADOS DO VEÍCULO -->
+  <div class="sec-label">Dados do Veículo</div>
+  <table class="tbl">
+    <tr>
+      <td class="lbl">Nome</td>
+      <td class="val" id="o-nome"></td>
+      <td class="lbl" style="width:16%">Data</td>
+      <td id="o-data"></td>
+    </tr>
+    <tr>
+      <td class="lbl">Veículo</td>
+      <td class="val" id="o-veiculo"></td>
+      <td class="lbl">Placa</td>
+      <td id="o-placa"></td>
+    </tr>
+    <tr>
+      <td class="lbl">Quilometragem</td>
+      <td colspan="3" id="o-km"></td>
+    </tr>
+  </table>
+
+  <!-- RESULTADO ICF -->
+  <div class="sec-label">Resultado — ICF Dias</div>
+  <div class="icf-row">
+    <div class="icf-box">
+      <div class="icf-lbl">Transmitância medida (T)</div>
+      <div class="icf-val" id="o-trans"></div>
+    </div>
+    <div class="icf-box resultado">
+      <div class="icf-lbl">Classificação ICF Dias</div>
+      <div class="icf-val" id="o-class"></div>
+    </div>
+  </div>
+
+  <!-- ESCALA -->
+  <div class="sec-label">Escala de Referência</div>
+  <table class="escala">
+    <tr>
+      <td class="hd" style="width:18%;text-align:center">Faixa (T)</td>
+      <td class="hd" style="width:22%;text-align:center">ICF Dias</td>
+      <td class="hd">Interpretação</td>
+    </tr>
+    <tr>
+      <td class="verde" style="text-align:center">80 – 100%</td>
+      <td class="verde" style="text-align:center">🟢 Bom</td>
+      <td>Fluido dentro do padrão óptico de referência.</td>
+    </tr>
+    <tr>
+      <td class="amar" style="text-align:center">60 – 79%</td>
+      <td class="amar" style="text-align:center">🟡 Atenção</td>
+      <td>Degradação perceptível. Reavaliar em breve.</td>
+    </tr>
+    <tr>
+      <td class="verm" style="text-align:center">&lt; 60%</td>
+      <td class="verm" style="text-align:center">🔴 Troca</td>
+      <td>Redução significativa da transmitância. Substituição preventiva recomendada.</td>
+    </tr>
+  </table>
+
+  <!-- RECOMENDAÇÃO TÉCNICA -->
+  <div class="sec-label">Recomendação Técnica</div>
+  <div class="rec-print" id="o-recs"></div>
+
+  <!-- FOTOS -->
+  <div id="o-fotos-sec" style="display:none">
+    <div class="sec-label">Análise do Fluido — Registro Fotográfico</div>
+    <div id="o-fotos" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"></div>
+  </div>
+
+  <!-- METODOLOGIA -->
+  <div class="sec-label">Metodologia</div>
+  <p class="small-text">
+    Medição por fotometria de transmitância (Lei de Beer-Lambert) — Testador Autool AS505, com sonda limpa e fluido abaixo de 60°C.
+    A transmitância T&nbsp;=&nbsp;luz transmitida&nbsp;/&nbsp;luz incidente é comparada ao padrão de fluido novo (T&nbsp;=&nbsp;100%), sendo sua redução correlacionada ao escurecimento, oxidação e contaminação por partículas em suspensão.
+  </p>
+
+  <!-- DISCLAIMER -->
+  <div class="box-gray small-text" style="margin-top:6px">
+    Este relatório apresenta os resultados obtidos por inspeção visual e análise óptica de transmitância do fluido, utilizando o equipamento AUTOOL AS505.
+    A avaliação refere-se exclusivamente às características observadas durante a inspeção e não substitui ensaios laboratoriais, análises físico-químicas do fluido ou desmontagem da transmissão, quando estes forem necessários para um diagnóstico conclusivo.
+    As recomendações emitidas têm caráter preventivo e devem ser interpretadas em conjunto com as especificações do fabricante do veículo e o histórico de manutenção disponível.
+  </div>
+
+  <!-- ASSINATURA -->
+  <div class="assinatura">
+      <img src="data:image/png;base64,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" alt="Assinatura Túlio" style="height:52px;display:block">
+    <div class="assin-line">
+      <div class="assinatura-texto">
+        <strong>Túlio Dias Frauzino</strong>
+        Engenheiro Mecânico — CREA-MG 142228776-9<br>
+        Responsável Técnico — Dias Centro Automotivo
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<button id="btn-imprimir" style="display:none" onclick="var n=(document.getElementById('f-nome').value||'').trim();document.title='Relatório ICF Dias'+(n?' - '+n:'');window.print();">🖨️ Imprimir / Salvar PDF</button>
+
+<script>
+  // Preview de fotos no formulário
+  document.getElementById('f-fotos').addEventListener('change', function() {
+    const prev = document.getElementById('preview-fotos');
+    prev.innerHTML = '';
+    Array.from(this.files).slice(0, 3).forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'text-align:center';
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.style.cssText = 'height:70px;border-radius:5px;border:1.5px solid var(--borda);object-fit:cover';
+        const lbl = document.createElement('p');
+        lbl.style.cssText = 'font-size:10px;color:var(--cinza);margin-top:3px';
+        lbl.textContent = 'Foto ' + (i+1);
+        wrap.appendChild(img);
+        wrap.appendChild(lbl);
+        prev.appendChild(wrap);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  // Preenche data de hoje por padrão
+  document.getElementById('f-data').valueAsDate = new Date();
+
+  function calcICF() {
+    const t = parseInt(document.getElementById('f-trans').value);
+    const badge = document.getElementById('badge');
+    if (isNaN(t) || t < 0 || t > 100) { badge.style.display = 'none'; return; }
+
+    badge.style.display = 'block';
+    badge.className = '';
+    if (t >= 80)      { badge.className = 'bom';   badge.textContent = '🟢 ICF Dias: BOM ('   + t + '%)'; }
+    else if (t >= 60) { badge.className = 'atenc';  badge.textContent = '🟡 ICF Dias: ATENÇÃO (' + t + '%)'; }
+    else              { badge.className = 'troca';  badge.textContent = '🔴 ICF Dias: TROCA (' + t + '%)'; }
+  }
+
+  function fmtData(val) {
+    if (!val) return '';
+    const [y, m, d] = val.split('-');
+    return d + '/' + m + '/' + y;
+  }
+
+  function gerarRelatorio() {
+    const nome   = document.getElementById('f-nome').value.trim();
+    const veiculo = document.getElementById('f-veiculo').value.trim();
+    const data   = document.getElementById('f-data').value;
+    const placa  = document.getElementById('f-placa').value.trim().toUpperCase();
+    const km     = document.getElementById('f-km').value;
+    const trans  = parseInt(document.getElementById('f-trans').value);
+
+    if (!nome || !veiculo || !placa || !km || isNaN(trans)) {
+      alert('Preencha todos os campos antes de gerar o relatório.');
+      return;
+    }
+
+    // preenche dados
+    document.getElementById('o-nome').textContent    = nome;
+    document.getElementById('o-veiculo').textContent = veiculo;
+    document.getElementById('o-data').textContent    = fmtData(data);
+    document.getElementById('o-placa').textContent   = placa;
+    document.getElementById('o-km').textContent      = Number(km).toLocaleString('pt-BR') + ' km';
+    document.getElementById('o-trans').textContent   = trans + ' %';
+
+    // classificação automática
+    let cls = '', cor = '';
+    if (trans >= 80)      { cls = '🟢 BOM';     cor = '#2E7D32'; }
+    else if (trans >= 60) { cls = '🟡 ATENÇÃO';  cor = '#B7950B'; }
+    else                  { cls = '🔴 TROCA';    cor = '#C0392B'; }
+    const el = document.getElementById('o-class');
+    el.textContent  = cls;
+    el.style.color  = cor;
+
+    // recomendações
+    const recs = [];
+    if (document.getElementById('r1').checked) recs.push('Manter o fluido atual.');
+    const km2 = document.getElementById('r2km').value;
+    if (document.getElementById('r2').checked) recs.push('Reavaliar em ' + (km2 ? km2 + ' km' : '_______ km') + '.');
+    if (document.getElementById('r3').checked) recs.push('Recomenda-se substituição preventiva do fluido.');
+    if (document.getElementById('r4').checked) recs.push('Recomenda-se inspeção complementar da transmissão.');
+    if (document.getElementById('r5').checked) recs.push('Recomenda-se diagnóstico eletrônico.');
+    if (document.getElementById('r6').checked) recs.push('Recomenda-se desmontagem para investigação.');
+
+    const recDiv = document.getElementById('o-recs');
+    if (recs.length === 0) {
+      recDiv.innerHTML = '<div class="rec-line"><span class="chk">☐</span> Nenhuma recomendação selecionada.</div>';
+    } else {
+      recDiv.innerHTML = recs.map(r =>
+        '<div class="rec-line"><span class="chk">☑</span> ' + r + '</div>'
+      ).join('');
+    }
+
+    // Fotos
+    const fotosInput = document.getElementById('f-fotos');
+    const fotosDiv   = document.getElementById('o-fotos');
+    const fotosSec   = document.getElementById('o-fotos-sec');
+    fotosDiv.innerHTML = '';
+    if (fotosInput.files.length > 0) {
+      fotosSec.style.display = 'block';
+      Array.from(fotosInput.files).slice(0, 3).forEach((file, i) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const wrap = document.createElement('div');
+          wrap.style.cssText = 'text-align:center';
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.className = 'foto-thumb';
+          const lbl = document.createElement('p');
+          lbl.className = 'foto-label';
+          lbl.textContent = 'Foto ' + (i+1);
+          wrap.appendChild(img);
+          wrap.appendChild(lbl);
+          fotosDiv.appendChild(wrap);
+        };
+        reader.readAsDataURL(file);
+      });
+    } else {
+      fotosSec.style.display = 'none';
+    }
+
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('btn-imprimir').style.display = 'block';
+    document.getElementById('preview').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
