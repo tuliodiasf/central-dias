@@ -1,0 +1,41 @@
+# Publica a Central na HostGator a cada gravação na branch main.
+# Precisa dos secrets: FTP_SERVER, FTP_USERNAME, FTP_PASSWORD (e opcional FTP_DIR).
+name: Publicar na HostGator
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostgator
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir se o acesso FTP foi configurado
+        id: chk
+        env:
+          S: ${{ secrets.FTP_SERVER }}
+        run: |
+          if [ -z "$S" ]; then echo "Secrets de FTP ainda não configurados. Nada publicado."; echo "ok=false" >> $GITHUB_OUTPUT; else echo "ok=true" >> $GITHUB_OUTPUT; fi
+
+      - uses: actions/checkout@v4
+        if: steps.chk.outputs.ok == 'true'
+
+      - name: Enviar arquivos por FTP
+        if: steps.chk.outputs.ok == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          server-dir: ${{ secrets.FTP_DIR || './' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            README.md
