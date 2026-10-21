@@ -2892,6 +2892,10 @@ function abrirNfc(){
 async function salvarNfc(){
   if(!$('mnc-data').value||!$('mnc-num').value.trim()||!+$('mnc-valor').value)return toast('Preencha data, nº da NF e valor');
   const o={funcId:+$('mnc-func').value,data:$('mnc-data').value,num:$('mnc-num').value.trim(),cli:$('mnc-cli').value.trim(),valor:+$('mnc-valor').value};
+  if(/dias\s*centro|centro\s*automotivo|^\s*dias\s*$/i.test(o.cli)){ // NF para a própria Dias não é "direto ao cliente"
+    fechar('ov-nfc');abrirNfd(o.funcId);$('mnd-data').value=o.data;$('mnd-num').value=o.num;$('mnd-valor').value=o.valor||'';
+    return toast('⚠ NF para a Dias Centro Automotivo é "NF emitida p/ Dias". Já abri o lançamento certo, é só anexar o arquivo.');
+  }
   if(!DEMO){
     const path=await uploadNF('mnc-arq','cliente/func-'+o.funcId+'/'+o.data.slice(0,4));
     const r=await supa.from('rh_nf_cliente').insert({func_id:o.funcId,data:o.data,num:o.num,cliente:o.cli,valor:o.valor,arq_path:path,criado_por:usuario?usuario.email:''}).select().single();
