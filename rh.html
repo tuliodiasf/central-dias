@@ -283,16 +283,21 @@ body.embedded .rh-topnav{display:flex}
 <section class="page" id="pg-nf">
   <div class="ph">
     <div><div class="ptitle">PJ &amp; NOTAS FISCAIS</div><div class="psub">Fechamento dos prestadores PJ (Keyla), arquivo de notas emitidas para a Dias e NF direto ao cliente (MEI)</div></div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="nf-comp" onchange="renderNF()" style="width:auto"></select><button class="btn bp" onclick="abrirNfc()">+ NF direto ao cliente</button></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="nf-comp" onchange="renderNF()" style="width:auto"></select><button class="btn bp" onclick="abrirNfd()">+ Lançar NF emitida p/ Dias</button><button class="btn bs" onclick="abrirNfc()">+ NF direto ao cliente</button></div>
   </div>
   <div class="card" style="margin-bottom:16px">
     <div class="ctitle">FECHAMENTO PJ — quanto adiantou, quanto de NF já entrou, quanto falta emitir</div>
     <div class="tw"><table><thead><tr><th>Prestador (PJ)</th><th>Previsto no mês (prévia)</th><th>Adiantado no mês</th><th>NF emitidas p/ Dias</th><th style="text-align:right">Restante a emitir NF</th></tr></thead><tbody id="tb-nfpj"></tbody></table></div>
     <p style="font-size:11.5px;color:var(--gray);margin-top:10px">Análise da Keyla no fim do mês: o prestador emite NF só da diferença entre o previsto e o que já emitiu. Adiantamento com NF anexada já conta como emitido. <b>Atenção:</b> a coluna "previsto" usa a prévia de comissão (fase 2 — ainda exemplo); adiantamentos e NFs já são reais.</p>
   </div>
-  <div class="grid2">
-    <div class="card"><div class="ctitle">📎 NOTAS EMITIDAS PARA A DIAS — arquivo (Marina anexa)</div>
-      <div class="tw"><table><thead><tr><th>Data</th><th>Prestador</th><th>NF</th><th>Referente</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody id="tb-nfdias"></tbody></table></div></div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><div class="ctitle" style="margin:0">📎 NF EMITIDAS PARA A DIAS — RESUMO DO MÊS POR PRESTADOR</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn bs bsm" onclick="imprimirNfDias()">🖨️ Imprimir resumo do mês</button><button class="btn bp bsm" onclick="abrirNfd()">+ Lançar NF</button></div></div>
+    <div class="mets" id="nfd-mets" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"></div>
+    <div class="tw"><table><thead><tr><th>Prestador / NF</th><th>Emissão</th><th>Nº NF</th><th>Referente</th><th>Anexo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody id="tb-nfdias"></tbody></table></div>
+    <p style="font-size:11.5px;color:var(--gray);margin-top:10px">Cada NF fica vinculada ao prestador que emitiu e ao mês de competência (o mês do serviço, mesmo que a nota saia no começo do mês seguinte). Clique no nome do prestador para abrir ou fechar o detalhe das notas.</p>
+  </div>
+  <div class="grid2" style="grid-template-columns:1fr">
     <div class="card"><div class="ctitle">🧾 NF EMITIDAS DIRETO AO CLIENTE (MEI)</div>
       <div class="tw"><table><thead><tr><th>Data</th><th>Técnico</th><th>NF</th><th>Cliente / serviço</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody id="tb-nfcli"></tbody></table></div>
       <p style="font-size:11.5px;color:var(--gray);margin-top:10px">Registro que descaracteriza exclusividade: serviços menores (alinhamento R$ 100, balanceamento) que o MEI fatura direto pro cliente final.</p></div>
@@ -503,6 +508,22 @@ body.embedded .rh-topnav{display:flex}
   <div class="mfoot"><button class="btn bs" onclick="fechar('ov-folga')">Cancelar</button><button class="btn bp" onclick="salvarFolga()">Salvar</button></div>
 </div></div>
 
+<div class="ov" id="ov-nfd"><div class="modal">
+  <div class="mhead"><div class="mtitle">LANÇAR NF EMITIDA PARA A DIAS</div><button class="mclose" onclick="fechar('ov-nfd')">×</button></div>
+  <div class="mbody"><div class="fg">
+    <div class="fi"><label>Prestador (PJ) que emitiu</label><select id="mnd-func" onchange="nfdVales()"></select></div>
+    <div class="fi"><label>Competência (mês do serviço)</label><select id="mnd-comp"></select></div>
+    <div class="fi"><label>Data de emissão</label><input id="mnd-data" type="date"></div>
+    <div class="fi"><label>Nº da NF</label><input id="mnd-num" placeholder="Ex.: NF 412"></div>
+    <div class="fi"><label>Valor (R$)</label><input id="mnd-valor" type="number" step="0.01" min="0"></div>
+    <div class="fi"><label>Referente a</label><select id="mnd-ref" onchange="nfdVales()"><option>Fechamento do mês (repasse / mão de obra)</option><option>Fixo mensal</option><option>Comissão</option><option value="ADIANTAMENTO">Adiantamento (vincular ao vale)</option><option>Outro</option></select></div>
+    <div class="fi full" id="mnd-valebox" style="display:none"><label>Adiantamento que esta NF cobre</label><select id="mnd-vale"></select></div>
+    <div class="fi full"><label>Observação</label><input id="mnd-obs" placeholder="Opcional — ex.: 2ª NF do mês, parte do repasse"></div>
+    <div class="fi full"><label>Arquivo da NF (PDF ou foto) — obrigatório</label><input id="mnd-arq" type="file" accept=".pdf,image/*"></div>
+  </div></div>
+  <div class="mfoot"><button class="btn bs" onclick="fechar('ov-nfd')">Cancelar</button><button class="btn bp" id="mnd-btn" onclick="salvarNfd()">Salvar NF</button></div>
+</div></div>
+
 <div class="ov" id="ov-nfc"><div class="modal">
   <div class="mhead"><div class="mtitle">NF EMITIDA DIRETO AO CLIENTE</div><button class="mclose" onclick="fechar('ov-nfc')">×</button></div>
   <div class="mbody"><div class="fg">
@@ -557,9 +578,10 @@ let VALES=[
  {id:6,num:'VD-2026-011',funcId:6,tipo:'ADIANTAMENTO',desc:'Adiantamento de R$ 1.500 solicitado dia 15/07, desconto integral no repasse de agosto. NF exigida.',valor:1500,parc:1,comp1:'2026-08',criado:'2026-07-15',ass:1,os:'',exigeNF:1,nf:1,baixas:[]},
  {id:7,num:'VD-2026-016',funcId:7,tipo:'ADIANTAMENTO',desc:'Adiantamento de R$ 1.000 solicitado dia 12/08, desconto integral no repasse de setembro. NF exigida.',valor:1000,parc:1,comp1:'2026-09',criado:'2026-08-12',ass:1,os:'',exigeNF:1,nf:null,baixas:[]}
 ];
-/* notas emitidas PARA A DIAS (arquivo — Marina anexa) e NF direto ao cliente (MEI) */
+const nfComp=n=>n.comp||String(n.data).slice(0,7);
+/* notas emitidas PARA A DIAS (arquivo) e NF direto ao cliente (MEI) */
 let NFS_DIAS=[
- {id:1,funcId:6,data:'2026-07-15',num:'NF 231',valor:1500,valeId:6,obs:'NF do adiantamento VD-2026-011 — anexada por Marina',arq:'nf231-jose-adiantamento.pdf',url:null},
+ {id:1,funcId:6,data:'2026-07-15',num:'NF 231',valor:1500,valeId:6,obs:'NF do adiantamento VD-2026-011',arq:'nf231-jose-adiantamento.pdf',url:null},
  {id:2,funcId:8,data:'2026-07-31',num:'NF 88',valor:8690,valeId:null,obs:'Fechamento julho — repasse mão de obra',arq:'nf88-lailton-julho.pdf',url:null},
  {id:3,funcId:7,data:'2026-07-31',num:'NF 412',valor:6520,valeId:null,obs:'Fechamento julho — fixo + 1% faturamento',arq:null,url:null}
 ];
@@ -640,7 +662,7 @@ async function carregar(){
     const raw=r.baixas||{};
     return {id:r.id,num:r.num,funcId:r.func_id,tipo:r.tipo,desc:r.descricao,valor:+r.valor,parc:r.parcelas,comp1:r.comp1,criado:r.criado,ass:r.assinado?1:0,exigeNF:r.exige_nf?1:0,nf:r.nf_id,os:r.os||'',baixas:Object.keys(raw).map(Number),bx:Object.fromEntries(Object.entries(raw).map(([k,x])=>[k,(x&&x.em)||''])),bxRaw:raw,por:r.criado_por||'',alt:r.alterado_por||'',altEm:r.alterado_em||'',assEm:r.assinado_em||'',assNome:r.assinado_nome||'',assVia:r.assinado_via||''};
   });
-  NFS_DIAS=(nd.data||[]).map(r=>({id:r.id,funcId:r.func_id,data:r.data,num:r.num,valor:+r.valor,valeId:r.vale_id,obs:r.obs||'',arq:r.arq_path?decodeURIComponent(r.arq_path.split('/').pop().replace(/^\d+-/,'')):null,path:r.arq_path,url:null}));
+  NFS_DIAS=(nd.data||[]).map(r=>({id:r.id,funcId:r.func_id,data:r.data,comp:r.competencia||String(r.data).slice(0,7),num:r.num,valor:+r.valor,valeId:r.vale_id,obs:r.obs||'',arq:r.arq_path?decodeURIComponent(r.arq_path.split('/').pop().replace(/^\d+-/,'')):null,path:r.arq_path,url:null}));
   NF_CLI=(nc.data||[]).map(r=>({id:r.id,funcId:r.func_id,data:r.data,num:r.num,cli:r.cliente||'',valor:+r.valor,arq:r.arq_path?decodeURIComponent(r.arq_path.split('/').pop().replace(/^\d+-/,'')):null,path:r.arq_path,url:null}));
   FERIAS=(fe.data||[]).map(r=>({id:r.id,funcId:r.func_id,tipo:r.tipo,ini:r.inicio,dias:r.dias,abat:r.abatidos||0,obs:r.obs||'',realIni:r.real_inicio||'',realDias:r.real_dias==null?null:+r.real_dias}));
   FOLGAS=(fo.data||[]).map(r=>({id:r.id,funcId:r.func_id,data:r.data,tipo:r.tipo,obs:r.obs||'',feriasId:r.ferias_id||null}));
@@ -946,7 +968,7 @@ function renderVales(){
     ['DESCONTO EM '+compLblS(compSel).toUpperCase(),fmt(doMes.reduce((s,x)=>s+x.p.val,0)),doMes.length+' parcela(s)'],
     ['AGUARDANDO BAIXA',aguardando.length,fmt(aguardando.reduce((s,p)=>s+p.val,0))+' vencido/atual sem baixa'],
     ['SEM ASSINATURA',VALES.filter(v=>!v.ass).length,VALES.filter(v=>!v.ass&&aceitePend(v.id)).length+' com link enviado · mande o link ou colha no papel'],
-    ['NF PENDENTES (PJ)',VALES.filter(v=>v.exigeNF&&!v.nf).length,'Marina precisa anexar']
+    ['NF PENDENTES (PJ)',VALES.filter(v=>v.exigeNF&&!v.nf).length,'aguardando NF do prestador']
   ].map(m=>`<div class="met"><div class="mlbl">${m[0]}</div><div class="mval">${m[1]}</div><div class="msub">${m[2]}</div></div>`).join('');
   const porFunc={};
   doMes.forEach(({v,p})=>{(porFunc[v.funcId]=porFunc[v.funcId]||[]).push({v,p})});
@@ -1171,7 +1193,7 @@ async function salvarVale(){
     v.id=r.data.id; num=r.data.num||num; v.num=num;
     if(v.exigeNF&&(nfnum||($('mv-nfarq').files&&$('mv-nfarq').files[0]))){
       const path=await uploadNF('mv-nfarq','func-'+v.funcId+'/'+ano);
-      const rn=await supa.from('rh_nfs_dias').insert({func_id:v.funcId,data:v.criado,num:nfnum||'NF (nº pendente)',valor:val,vale_id:v.id,obs:'NF do adiantamento '+num+' — anexada no lançamento',arq_path:path,criado_por:usuario?usuario.email:''}).select().single();
+      const rn=await supa.from('rh_nfs_dias').insert({func_id:v.funcId,data:v.criado,competencia:String(v.criado).slice(0,7),num:nfnum||'NF (nº pendente)',valor:val,vale_id:v.id,obs:'NF do adiantamento '+num+' — anexada no lançamento',arq_path:path,criado_por:usuario?usuario.email:''}).select().single();
       if(!await dbErr(rn,'Erro ao arquivar a NF')){
         v.nf=rn.data.id;
         await supa.from('rh_vales').update({nf_id:v.nf}).eq('id',v.id);
@@ -1199,13 +1221,13 @@ function verVale(id){
       <div class="ibox"><div class="il">Tipo</div><div class="iv"><span class="badge ${TIPOLBL[v.tipo][1]}">${TIPOLBL[v.tipo][0]}</span></div></div>
       <div class="ibox"><div class="il">Valor total</div><div class="iv">${fmt(v.valor)}</div><div class="is">${v.parc}x · 1º desconto ${compLblS(v.comp1)}</div></div>
       <div class="ibox"><div class="il">Assinatura</div><div class="iv">${v.ass?(v.assVia==='link'?'<span class="badge b-g">ASSINADO DIGITALMENTE</span>':'<span class="badge b-g">ASSINADO NO PAPEL</span>'):(aceitePend(v.id)?'<span class="badge b-b">LINK ENVIADO · AGUARDANDO</span>':'<span class="badge b-y">PENDENTE</span>')}</div><div class="is">lançado em ${dBr(v.criado)}${v.por?' por '+v.por.split('@')[0]:''}${v.alt?'<br>alterado por '+v.alt.split('@')[0]+' em '+dBr(v.altEm.slice(0,10)):''}</div></div>
-      ${v.exigeNF?`<div class="ibox"><div class="il">Nota fiscal (PJ)</div><div class="iv">${v.nf?'<span class="badge b-g">NF ANEXADA</span>':'<span class="badge b-y">PENDENTE</span>'}</div><div class="is">${nfLig?nfLig.num+' · '+dBr(nfLig.data)+arqLbl(nfLig):'Marina anexa quando o prestador emitir'}</div></div>`:''}
+      ${v.exigeNF?`<div class="ibox"><div class="il">Nota fiscal (PJ)</div><div class="iv">${v.nf?'<span class="badge b-g">NF ANEXADA</span>':'<span class="badge b-y">PENDENTE</span>'}</div><div class="is">${nfLig?nfLig.num+' · '+dBr(nfLig.data)+arqLbl(nfLig):'anexar quando o prestador emitir'}</div></div>`:''}
     </div>
     ${v.exigeNF&&!v.nf?`<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;background:var(--gray-bg);border-radius:8px;padding:10px 12px">
       <div class="fi" style="flex:1;min-width:110px"><label>Nº da NF</label><input id="vd-nfnum" placeholder="Ex.: NF 245"></div>
       <div class="fi" style="flex:1;min-width:130px"><label>Data de emissão</label><input id="vd-nfdata" type="date"></div>
       <div class="fi" style="flex:1.4;min-width:170px"><label>Arquivo (PDF/foto)</label><input id="vd-nfarq" type="file" accept=".pdf,image/*"></div>
-      <button class="btn bgreen" onclick="anexarNF()">📎 Anexar NF (Marina)</button>
+      <button class="btn bgreen" onclick="anexarNF()">📎 Anexar NF</button>
     </div>`:''}
     ${blocoAssinatura(v)}
     <div class="ctitle">DESCRIÇÃO</div><p style="font-size:13px;margin-bottom:16px">${v.desc}${v.os?' <span class="badge b-gr">O.S. '+v.os+'</span>':''}</p>
@@ -1231,10 +1253,10 @@ async function anexarNF(){
   const v=VALES.find(x=>x.id===valeId);
   const num=$('vd-nfnum').value.trim(),data=$('vd-nfdata').value;
   if(!num||!data)return toast('Informe nº e data da NF');
-  const obs='NF do adiantamento '+v.num+' — anexada por '+(usuario?usuario.email.split('@')[0]:'Marina');
+  const obs='NF do adiantamento '+v.num+' — anexada por '+(usuario?usuario.email.split('@')[0]:'RH');
   if(!DEMO){
     const path=await uploadNF('vd-nfarq','func-'+v.funcId+'/'+data.slice(0,4));
-    const r=await supa.from('rh_nfs_dias').insert({func_id:v.funcId,data,num,valor:v.valor,vale_id:v.id,obs,arq_path:path,criado_por:usuario?usuario.email:''}).select().single();
+    const r=await supa.from('rh_nfs_dias').insert({func_id:v.funcId,data,competencia:data.slice(0,7),num,valor:v.valor,vale_id:v.id,obs,arq_path:path,criado_por:usuario?usuario.email:''}).select().single();
     if(await dbErr(r,'Erro ao arquivar NF'))return;
     const ru=await supa.from('rh_vales').update({nf_id:r.data.id}).eq('id',v.id);
     if(await dbErr(ru,'Erro ao vincular NF'))return;
@@ -2765,17 +2787,102 @@ function renderNF(){
     const g=D.gest.find(x=>x.funcId===f.id); if(g)com=g.com;
     const previsto=ehOperador()?0:(f.fixo||0)+com;
     const adiantado=VALES.filter(v=>v.funcId===f.id&&v.tipo==='ADIANTAMENTO'&&v.criado.slice(0,7)===m).reduce((s,v)=>s+v.valor,0);
-    const nfd=NFS_DIAS.filter(n=>n.funcId===f.id&&n.data.slice(0,7)===m).reduce((s,n)=>s+n.valor,0);
+    const nfd=NFS_DIAS.filter(n=>n.funcId===f.id&&nfComp(n)===m).reduce((s,n)=>s+n.valor,0);
     const rest=Math.max(0,previsto-nfd);
     return `<tr><td>${nomeLink(f.id)} <span style="color:var(--gray);font-size:11px">${f.cargo}</span></td><td>${previsto?fmt(previsto):'<span style="color:var(--gray)">sem prévia</span>'}</td><td>${adiantado?'<b style="color:var(--yellow)">'+fmt(adiantado)+'</b>':'—'}</td><td>${nfd?fmt(nfd):'—'}</td><td style="text-align:right">${previsto?(rest>0?'<b style="color:var(--red)">'+fmt(rest)+'</b>':'<span class="badge b-g">NF COMPLETA ✔</span>'):'—'}</td></tr>`;
   }).join('');
-  $('tb-nfdias').innerHTML=NFS_DIAS.filter(n=>n.data.slice(0,7)===m).sort((a,b)=>b.data.localeCompare(a.data)).map(n=>
-    `<tr><td>${dBr(n.data)}</td><td>${nomeLink(n.funcId)}</td><td><span class="badge b-b">${n.num}</span></td><td style="font-size:11.5px">${n.obs}${arqLbl(n)}</td><td style="text-align:right"><b>${fmt(n.valor)}</b></td><td style="text-align:right">${btnDel('nd'+n.id,'excluirNfDias('+n.id+')')}</td></tr>`
-  ).join('')||'<tr><td colspan="6" class="empty">Nenhuma NF arquivada neste mês</td></tr>';
+  renderNfDias(m);
   const cli=NF_CLI.filter(n=>n.data.slice(0,7)===m).sort((a,b)=>b.data.localeCompare(a.data));
   $('tb-nfcli').innerHTML=cli.map(n=>
     `<tr><td>${dBr(n.data)}</td><td>${nomeLink(n.funcId)}</td><td><span class="badge b-p">${n.num}</span></td><td style="font-size:11.5px">${n.cli}${arqLbl(n)}</td><td style="text-align:right"><b>${fmt(n.valor)}</b></td><td style="text-align:right">${btnDel('nc'+n.id,'excluirNfCli('+n.id+')')}</td></tr>`
   ).join('')||'<tr><td colspan="6" class="empty">Nenhuma NF direto ao cliente neste mês</td></tr>';
+}
+/* NF emitidas para a Dias — agrupadas por prestador no mês de competência */
+let NFD_ABERTO={};
+function nfdGrupos(m){
+  const doMes=NFS_DIAS.filter(n=>nfComp(n)===m);
+  const ids=[...new Set(doMes.map(n=>n.funcId))];
+  return ids.map(id=>{const ns=doMes.filter(n=>n.funcId===id).sort((a,b)=>a.data.localeCompare(b.data)||String(a.num).localeCompare(String(b.num)));return{id,f:funcDe(id),ns,tot:ns.reduce((s,n)=>s+n.valor,0)}})
+    .sort((a,b)=>b.tot-a.tot);
+}
+function nfdRef(n){
+  const v=n.valeId?VALES.find(x=>x.id===n.valeId):null;
+  return (n.obs||'')+(v&&!(n.obs||'').includes(v.num)?' · vale '+v.num:'')+(n.data.slice(0,7)!==nfComp(n)?' <span class="badge b-y" title="Emitida em outro mês">emitida '+compLblS(n.data.slice(0,7))+'</span>':'');
+}
+function renderNfDias(m){
+  const G=nfdGrupos(m), tot=G.reduce((s,g)=>s+g.tot,0), qtd=G.reduce((s,g)=>s+g.ns.length,0), semArq=G.reduce((s,g)=>s+g.ns.filter(n=>!n.arq).length,0);
+  $('nfd-mets').innerHTML=[['TOTAL DE NF NO MÊS',fmt(tot),compLbl(m)],['NOTAS LANÇADAS',qtd,G.length+' prestador(es)'],['SEM ARQUIVO ANEXO',semArq,semArq?'anexar o PDF':'tudo anexado ✔']]
+    .map(([l,v,sub])=>`<div class="met" style="cursor:default"><div class="mlbl">${l}</div><div class="mval">${v}</div><div class="msub">${sub}</div></div>`).join('');
+  $('tb-nfdias').innerHTML=G.map(g=>{
+    const ab=NFD_ABERTO[m+'-'+g.id]!==false;
+    return `<tr style="background:var(--bg);cursor:pointer" onclick="NFD_ABERTO['${m}-${g.id}']=${ab?'false':'true'};renderNfDias('${m}')"><td colspan="5"><span style="display:inline-block;width:14px">${ab?'▾':'▸'}</span><b>${g.f.nome||'—'}</b> <span style="color:var(--gray);font-size:11px">${g.ns.length} NF${g.ns.length>1?'s':''}</span></td><td style="text-align:right"><b>${fmt(g.tot)}</b></td><td></td></tr>`+
+      (ab?g.ns.map(n=>`<tr><td style="padding-left:30px;color:var(--gray);font-size:11.5px">└</td><td>${dBr(n.data)}</td><td><span class="badge b-b">${n.num}</span></td><td style="font-size:11.5px">${nfdRef(n)}</td><td style="font-size:11.5px">${n.arq?arqLbl(n):'<span class="badge b-y">SEM ARQUIVO</span>'}</td><td style="text-align:right">${fmt(n.valor)}</td><td style="text-align:right">${btnDel('nd'+n.id,'excluirNfDias('+n.id+')')}</td></tr>`).join(''):'');
+  }).join('')||'<tr><td colspan="7" class="empty">Nenhuma NF lançada para este mês. Use “+ Lançar NF”.</td></tr>';
+}
+function nfdVales(){
+  const fid=+$('mnd-func').value, adi=$('mnd-ref').value==='ADIANTAMENTO';
+  $('mnd-valebox').style.display=adi?'':'none';
+  if(!adi)return;
+  const vs=VALES.filter(v=>v.funcId===fid&&v.tipo==='ADIANTAMENTO'&&!v.nf);
+  $('mnd-vale').innerHTML=vs.length?vs.map(v=>`<option value="${v.id}">${v.num} · ${dBr(v.criado)} · ${fmt(v.valor)}</option>`).join(''):'<option value="">Nenhum adiantamento sem NF para este prestador</option>';
+  const v=vs[0]; if(v&&!+$('mnd-valor').value)$('mnd-valor').value=v.valor;
+}
+function abrirNfd(funcId){
+  const m=$('nf-comp').value||curComp;
+  $('mnd-func').innerHTML=FUNCS.filter(f=>f.ativo&&f.regime==='PJ').sort((a,b)=>a.nome.localeCompare(b.nome)).map(f=>`<option value="${f.id}" ${f.id===funcId?'selected':''}>${f.nome}</option>`).join('');
+  $('mnd-comp').innerHTML=[-3,-2,-1,0,1].map(i=>compAdd(curComp,i)).map(c=>`<option value="${c}" ${c===m?'selected':''}>${compLbl(c)}</option>`).join('');
+  $('mnd-data').value=hoje.toISOString().slice(0,10);
+  ['mnd-num','mnd-valor','mnd-obs','mnd-arq'].forEach(id=>$(id).value='');
+  $('mnd-ref').selectedIndex=0; nfdVales();
+  abrir('ov-nfd');
+}
+async function salvarNfd(){
+  const funcId=+$('mnd-func').value, comp=$('mnd-comp').value, data=$('mnd-data').value, num=$('mnd-num').value.trim(), valor=+$('mnd-valor').value;
+  const adi=$('mnd-ref').value==='ADIANTAMENTO', valeId=adi?(+$('mnd-vale').value||null):null;
+  if(!funcId||!comp||!data||!num||!(valor>0))return toast('Preencha prestador, competência, data, nº da NF e valor');
+  const temArq=$('mnd-arq').files&&$('mnd-arq').files[0];
+  if(!temArq)return toast('Anexe o arquivo da NF (PDF ou foto)');
+  if(adi&&!valeId)return toast('Escolha o adiantamento que a NF cobre, ou mude o "Referente a"');
+  if(NFS_DIAS.some(n=>n.funcId===funcId&&String(n.num).replace(/\D/g,'')===num.replace(/\D/g,'')&&num.replace(/\D/g,'')))return toast('⚠ Esse nº de NF já está lançado para este prestador');
+  const v=valeId?VALES.find(x=>x.id===valeId):null;
+  const ref=adi?('NF do adiantamento '+(v?v.num:'')):$('mnd-ref').value;
+  const obs=ref+($('mnd-obs').value.trim()?' — '+$('mnd-obs').value.trim():'');
+  const btn=$('mnd-btn'); btn.disabled=true; btn.textContent='Salvando…';
+  try{
+    if(!DEMO){
+      const path=await uploadNF('mnd-arq','func-'+funcId+'/'+comp.slice(0,4));
+      if(!path)return;
+      const r=await supa.from('rh_nfs_dias').insert({func_id:funcId,data,competencia:comp,num,valor,vale_id:valeId,obs,arq_path:path,criado_por:usuario?usuario.email:''}).select().single();
+      if(await dbErr(r,'Erro ao lançar NF')){await supa.storage.from('notas-fiscais').remove([path]);return}
+      if(v){const ru=await supa.from('rh_vales').update({nf_id:r.data.id}).eq('id',v.id);if(!await dbErr(ru,'NF salva, mas não vinculou ao vale'))v.nf=r.data.id}
+      NFS_DIAS.unshift({id:r.data.id,funcId,data,comp,num,valor,valeId,obs,arq:path.split('/').pop().replace(/^\d+-/,''),path,url:null});
+    }else{
+      const id=Math.max(0,...NFS_DIAS.map(n=>n.id))+1, anexo=pegaArq('mnd-arq');
+      NFS_DIAS.push({id,funcId,data,comp,num,valor,valeId,obs,arq:anexo.arq,url:anexo.url});
+      if(v)v.nf=id;
+    }
+    $('nf-comp').value=[...$('nf-comp').options].some(o=>o.value===comp)?comp:$('nf-comp').value;
+    NFD_ABERTO[comp+'-'+funcId]=true;
+    fechar('ov-nfd');renderNF();if(typeof renderVales==='function')renderVales();
+    toast('NF '+num+' lançada para '+funcDe(funcId).nome.split(' ')[0]+' 📎');
+  }finally{btn.disabled=false;btn.textContent='Salvar NF'}
+}
+function imprimirNfDias(){
+  const m=$('nf-comp').value||curComp, G=nfdGrupos(m), tot=G.reduce((s,g)=>s+g.tot,0);
+  if(!G.length)return toast('Nenhuma NF lançada neste mês');
+  const w=window.open('','_blank'); if(!w)return toast('Libere pop-ups para imprimir');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>NF emitidas p/ Dias — ${compLbl(m)}</title><style>
+  body{font-family:Arial,sans-serif;color:#111;margin:28px;font-size:12px}h1{font-size:17px;margin:0}h2{font-size:13px;margin:18px 0 6px;display:flex;justify-content:space-between;border-bottom:2px solid #cc0000;padding-bottom:4px}
+  table{width:100%;border-collapse:collapse}th,td{padding:5px 6px;border-bottom:1px solid #ddd;text-align:left}th{font-size:10px;text-transform:uppercase;color:#555;background:#f3f3f3}.r{text-align:right}
+  .tot{margin-top:18px;font-size:14px;text-align:right;font-weight:bold}.sub{color:#555;margin-top:4px}@media print{button{display:none}}</style></head><body>
+  <button onclick="print()" style="float:right;padding:8px 14px">🖨️ Imprimir / salvar PDF</button>
+  <h1>DIAS CENTRO AUTOMOTIVO — NF EMITIDAS PELOS PRESTADORES PJ</h1><div class="sub">Competência ${compLbl(m)} · gerado em ${new Date().toLocaleString('pt-BR')}</div>
+  <h2 style="border-color:#111"><span>RESUMO</span><span></span></h2><table><thead><tr><th>Prestador</th><th class="r">Qtd NF</th><th class="r">Total</th></tr></thead><tbody>
+  ${G.map(g=>`<tr><td>${g.f.nome}</td><td class="r">${g.ns.length}</td><td class="r"><b>${fmt(g.tot)}</b></td></tr>`).join('')}</tbody></table>
+  ${G.map(g=>`<h2><span>${g.f.nome}</span><span>${fmt(g.tot)}</span></h2><table><thead><tr><th>Emissão</th><th>Nº NF</th><th>Referente</th><th>Anexo</th><th class="r">Valor</th></tr></thead><tbody>
+  ${g.ns.map(n=>`<tr><td>${dBr(n.data)}</td><td>${n.num}</td><td>${n.obs||''}</td><td>${n.arq?'sim':'<b>FALTA</b>'}</td><td class="r">${fmt(n.valor)}</td></tr>`).join('')}</tbody></table>`).join('')}
+  <div class="tot">TOTAL DO MÊS: ${fmt(tot)}</div></body></html>`);
+  w.document.close();
 }
 function abrirNfc(){
   $('mnc-func').innerHTML=FUNCS.filter(f=>f.ativo&&f.regime==='PJ').map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
