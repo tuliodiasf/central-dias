@@ -1227,6 +1227,7 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
         <div class="fg">
             <div class="fi"><label>Dias úteis no mês</label><input type="text" id="me-dias" class="num" onblur="fmtField(this)"></div>
             <div class="fi"><label>Feriados (dd/mm/aaaa, separados por vírgula)</label><input type="text" id="me-feriados"></div>
+            <div class="fi" style="grid-column:1/-1"><label>Ausências por pessoa (folga, férias). Ex.: caio 03/11/2026, 04/11/2026; samile 03/11/2026 a 06/11/2026</label><input type="text" id="me-ausencias" placeholder="nome datas; nome datas"></div>
         </div>
     </div>
     <div class="card" style="margin-bottom:16px">
@@ -2560,6 +2561,7 @@ async function renderMetas(){
     var di=document.getElementById('me-dias'); if(di) di.value=conf?String(conf.dias_uteis):'';
     var gb=document.getElementById('me-g-base'); if(gb) gb.value=conf?String(conf.google_base):'';
     var fe=document.getElementById('me-feriados'); if(fe) fe.value=(conf&&conf.feriados)?conf.feriados.map(isoToBr).join(', '):'';
+    var au=document.getElementById('me-ausencias'); if(au) au.value=conf?ausenciasParaTexto(conf.ausencias):'';
     document.querySelectorAll('#pg-metas input.num').forEach(function(el){ el.onblur=function(){ fmtField(this); }; });
     var st=document.getElementById('me-status'); if(st) st.textContent='';
 }
@@ -2604,9 +2606,10 @@ async function salvarMetas(){
       {mes:mes,escopo:'samile',indicador:'agendamento_os',meta:g('me-sa-os'),supermeta:null},
       {mes:mes,escopo:'samile',indicador:'escada',meta:g('me-sa-escada'),supermeta:null}
     ];
+    var ant=await supa.from('metas').select('escopo,indicador,supermeta').eq('mes',mes); (ant.data||[]).forEach(function(a){ if(a.escopo==='oficina'||a.supermeta==null) return; var x=metas.find(function(m){return m.escopo===a.escopo&&m.indicador===a.indicador;}); if(x&&x.supermeta==null) x.supermeta=a.supermeta; });
     var r1=await supa.from('metas').upsert(metas,{onConflict:'mes,escopo,indicador'});
     var fer=String((document.getElementById('me-feriados')||{}).value||'').split(',').map(brToIso).filter(Boolean);
-    var conf={mes:mes,dias_uteis:Math.round(g('me-dias')),google_base:Math.round(g('me-g-base')),feriados:fer};
+    var conf={mes:mes,dias_uteis:Math.round(g('me-dias')),google_base:Math.round(g('me-g-base')),feriados:fer,ausencias:textoParaAusencias((document.getElementById('me-ausencias')||{}).value,mes)};
     var r2=await supa.from('config_mes').upsert([conf],{onConflict:'mes'});
     if(r1.error||r2.error){ if(st) st.textContent='Erro ao salvar.'; toast('Erro ao salvar metas.'); }
     else { if(st) st.textContent='Mês salvo e travado!'; toast('Mês salvo e travado.'); }
@@ -2753,13 +2756,15 @@ async function renderResultados(){
     var gMeta=meta('oficina','google');
     var gKpi='<div class="met"><div class="mlbl">Google (time)</div><div class="mval" style="font-size:18px">+'+fmtNum(gReal)+'</div><div class="msub">meta '+fmtNum(gMeta)+' · '+(gMeta>0?Math.round(gReal/gMeta*100):0)+'%</div></div>';
 
-    function pace(pct){ return pct>=ritmo*100; }
+    function pace(pct,rt){ return pct>=(rt?rt.ritmo:ritmo)*100; }
+    function rtDe(esc){ return ritmoPessoa(conf,mes,total,elapsed,diaCorte,mesAtual,esc); }
+    function ausTxt(rt){ return (rt&&rt.ausente>0)?(' · '+rt.total+' dias úteis seus'):''; }
     function pctTxt(r,m){ return m>0?Math.round(r/m*100)+'%':'—'; }
     function kpi(lbl,val,sub){ return '<div class="met"><div class="mlbl">'+lbl+'</div><div class="mval" style="font-size:18px">'+val+'</div><div class="msub">'+sub+'</div></div>'; }
-    function chase(metaV,realV){ var saldo=Math.max(metaV-realV,0);
-        if(remaining<=0) return '<div class="rchase"><span class="rtxt">mês encerrado</span></div>';
-        var on=(metaV>0?realV/metaV*100:0)>=ritmo*100;
-        return '<div class="rchase'+(on?'':' low')+'"><span class="rbig">'+fmtBRL(saldo/remaining)+'</span><span class="rtxt">por dia útil para bater a meta<br>saldo '+fmtBRL(saldo)+' ÷ '+remaining+' dias</span></div>'; }
+    function chase(metaV,realV,rt){ var saldo=Math.max(metaV-realV,0); var rem=rt?rt.remaining:remaining, rtm=rt?rt.ritmo:ritmo;
+        if(rem<=0) return '<div class="rchase"><span class="rtxt">'+(remaining<=0?'mês encerrado':'seus dias úteis do mês acabaram')+'</span></div>';
+        var on=(metaV>0?realV/metaV*100:0)>=rtm*100;
+        return '<div class="rchase'+(on?'':' low')+'"><span class="rbig">'+fmtBRL(saldo/rem)+'</span><span class="rtxt">por dia útil para bater a meta<br>saldo '+fmtBRL(saldo)+' ÷ '+rem+' dias</span></div>'; }
     function tag(on){ return on?'<span class="rtag ok">No ritmo</span>':'<span class="rtag low">Abaixo do ritmo</span>'; }
     function barpct(r,m){ return Math.min(m>0?r/m*100:0,100); }
 
@@ -2785,12 +2790,12 @@ async function renderResultados(){
 
     function vend(nome,esc,rank){ var f=real(esc,'faturamento'),fM=meta(esc,'faturamento');
         var c=real(esc,'carros'),cM=meta(esc,'carros'); var ol=real(esc,'oleo'),olM=meta(esc,'oleo');
-        var tk=c>0?f/c:0,tkM=meta(esc,'ticket'); var on=pace(fM>0?f/fM*100:0);
+        var tk=c>0?f/c:0,tkM=meta(esc,'ticket'); var rt=rtDe(esc); var on=pace(fM>0?f/fM*100:0,rt);
         return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:15px;font-weight:800"><span class="rrank'+(rank===2?' two':'')+'">'+rank+'</span>'+nome+'</div>'+tag(on)+'</div>'
-          +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray)"><span>faturamento</span><span>no ritmo hoje: '+fmtBRL(fM*ritmo)+'</span><span>meta '+fmtBRL(fM)+'</span></div>'
-          +'<div class="rbar"><div class="rfill '+(on?'blue':'red')+'" style="width:'+barpct(f,fM)+'%"></div><div class="rpace" style="left:'+Math.round(ritmo*100)+'%"></div><span class="rcar" style="left:'+barpct(f,fM)+'%">🚗</span><span class="rflag">🏁</span></div>'
+          +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray)"><span>faturamento'+ausTxt(rt)+'</span><span>no ritmo hoje: '+fmtBRL(fM*rt.ritmo)+'</span><span>meta '+fmtBRL(fM)+'</span></div>'
+          +'<div class="rbar"><div class="rfill '+(on?'blue':'red')+'" style="width:'+barpct(f,fM)+'%"></div><div class="rpace" style="left:'+Math.round(rt.ritmo*100)+'%"></div><span class="rcar" style="left:'+barpct(f,fM)+'%">🚗</span><span class="rflag">🏁</span></div>'
           +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:19px;font-weight:900">'+fmtBRL(f)+'</span><span style="font-size:12px;color:var(--gray)">'+pctTxt(f,fM)+'</span></div>'
-          +chase(fM,f)
+          +chase(fM,f,rt)
           +'<div class="mets" style="grid-template-columns:repeat(2,1fr);margin-top:14px;margin-bottom:0">'
           +kpi('Carros',fmtNum(c),'meta '+fmtNum(cM)+' · '+pctTxt(c,cM))
           +kpi('Ticket médio',fmtBRL(tk),'meta '+fmtBRL(tkM))
@@ -2804,17 +2809,40 @@ async function renderResultados(){
     var disputa='<div class="ctitle">A disputa · corrida aberta</div><div class="'+(vl.length>2?'grid3':'grid2')+'">'+vl.map(function(x,i){ return vend(x[0],x[1],i+1); }).join('')+'</div>';
 
     var sF=real('samile','agendamento_fat'),sFM=meta('samile','agendamento_fat');
-    var sO=real('samile','agendamento_os'),sOM=meta('samile','agendamento_os'); var sOn=pace(sFM>0?sF/sFM*100:0);
+    var sO=real('samile','agendamento_os'),sOM=meta('samile','agendamento_os'); var sRt=rtDe('samile'); var sOn=pace(sFM>0?sF/sFM*100:0,sRt);
     var samile='<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="ctitle" style="margin-bottom:0">Samile · telemarketing</div>'+tag(sOn)+'</div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray)"><span>faturamento agendado</span><span>no ritmo hoje: '+fmtBRL(sFM*ritmo)+'</span><span>meta '+fmtBRL(sFM)+'</span></div>'
-      +'<div class="rbar"><div class="rfill '+(sOn?'blue':'red')+'" style="width:'+barpct(sF,sFM)+'%"></div><div class="rpace" style="left:'+Math.round(ritmo*100)+'%"></div><span class="rcar" style="left:'+barpct(sF,sFM)+'%">🚗</span><span class="rflag">🏁</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray)"><span>faturamento agendado'+ausTxt(sRt)+'</span><span>no ritmo hoje: '+fmtBRL(sFM*sRt.ritmo)+'</span><span>meta '+fmtBRL(sFM)+'</span></div>'
+      +'<div class="rbar"><div class="rfill '+(sOn?'blue':'red')+'" style="width:'+barpct(sF,sFM)+'%"></div><div class="rpace" style="left:'+Math.round(sRt.ritmo*100)+'%"></div><span class="rcar" style="left:'+barpct(sF,sFM)+'%">🚗</span><span class="rflag">🏁</span></div>'
       +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:19px;font-weight:900">'+fmtBRL(sF)+'</span><span style="font-size:12px;color:var(--gray)">'+pctTxt(sF,sFM)+'</span></div>'
-      +chase(sFM,sF)
+      +chase(sFM,sF,sRt)
       +'<div class="mets" style="grid-template-columns:repeat(2,1fr);margin-top:14px;margin-bottom:0">'
       +kpi('OS agendadas',fmtNum(sO),'meta '+fmtNum(sOM)+' · '+pctTxt(sO,sOM))+kpi('Ticket médio',fmtBRL(sO>0?sF/sO:0),'agendado')+'</div></div>';
 
     if(body) body.innerHTML=oficina+smBanner+disputa+samile;
 }
+
+// 02/11/2026 (Túlio): ausência por pessoa. A meta individual já vem abatida pelos dias fora;
+// o ritmo, o "no ritmo hoje" e o "por dia útil" de cada um contam só os dias úteis em que a pessoa trabalha.
+var ESCOPO_ALIAS={matheus:'mateus',mateus:'mateus',caio:'caio',raphael:'raphael',rafael:'raphael',samille:'samile',samile:'samile'};
+function ritmoPessoa(conf,mes,total,elapsed,diaCorte,mesAtual,esc){
+    var aus=(conf&&conf.ausencias&&conf.ausencias[esc])?conf.ausencias[esc]:[];
+    var fer=(conf&&conf.feriados)?conf.feriados:[]; var tot=total, el=elapsed;
+    aus.forEach(function(iso){ if(String(iso).slice(0,7)!==mes) return; var p=String(iso).split('-'); var dt=new Date(+p[0],+p[1]-1,+p[2]); var wd=dt.getDay();
+        if(wd===0||wd===6||fer.indexOf(iso)>=0) return; tot--;
+        if(mes<mesAtual || (mes===mesAtual && +p[2]<=diaCorte)) el--; });
+    tot=Math.max(tot,0); el=Math.max(Math.min(el,tot),0);
+    return {ritmo:tot>0?el/tot:0, remaining:Math.max(tot-el,0), total:tot, elapsed:el, ausente:total-tot};
+}
+function ausenciasParaTexto(a){ if(!a) return ''; return Object.keys(a).filter(function(k){return (a[k]||[]).length;}).map(function(k){ return k+' '+a[k].map(isoToBr).join(', '); }).join('; '); }
+function textoParaAusencias(txt,mes){ var out={};
+    String(txt||'').split(';').forEach(function(seg){ seg=seg.trim(); if(!seg) return; var m=seg.match(/^([A-Za-zÀ-ú]+)\s+(.*)$/); if(!m) return;
+        var esc=ESCOPO_ALIAS[m[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')]; if(!esc) return; var lista=out[esc]||[];
+        m[2].split(',').forEach(function(it){ it=it.trim(); if(!it) return; var r=it.split(/\s+a\s+/);
+            var ini=brToIso(r[0].trim()), fim=r[1]?brToIso(r[1].trim()):ini; if(!ini||!fim) return;
+            var d=new Date(+ini.slice(0,4),+ini.slice(5,7)-1,+ini.slice(8,10)), f=new Date(+fim.slice(0,4),+fim.slice(5,7)-1,+fim.slice(8,10));
+            for(var g=0; d<=f && g<62; g++){ var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); if(lista.indexOf(iso)<0) lista.push(iso); d.setDate(d.getDate()+1); } });
+        lista.sort(); out[esc]=lista; });
+    return out; }
 
 async function renderComissoes(){
     var sel=document.getElementById('cm-mes');
@@ -2853,20 +2881,20 @@ async function renderComissoes(){
             bonusHTML+='<div class="ind-bonus '+cls+'"><span>'+b.lbl+' · '+realTxt(b.real,b.fmt)+' de '+realTxt(b.meta,b.fmt)+'</span><span class="v">'+dir+'</span></div>';
         });
         var escada=c.seq>=1?c.escada[Math.min(c.seq,3)-1]:0; var ganho=c.fixo+com+bonusSum+escada;
-        var projFat=ritmo>0?c.fat/ritmo:c.fat; var projGanho=c.fixo+projFat*tiersPct(c.mF>0?projFat/c.mF:0,c.tiers)+bonusSum+escada;
+        var rp=c.esc?ritmoPessoa(conf,mes,total,elapsed,diaCorte,mesAtual,c.esc).ritmo:ritmo; var projFat=rp>0?c.fat/rp:c.fat; var projGanho=c.fixo+projFat*tiersPct(c.mF>0?projFat/c.mF:0,c.tiers)+bonusSum+escada;
         var col=at>=1?'#1f6fd6':'#dc2626'; var faltaMeta=Math.max(c.mF-c.fat,0);
         var prox=at>=1.10?'você está no topo da comissão':(at>=1?('faltam '+fmtBRL(c.mF*1.10-c.fat)+' pra chegar em '+pctFmt(c.tiers[2])+'%'):('faltam '+fmtBRL(faltaMeta)+' pra bater a meta e subir pra '+pctFmt(c.tiers[1])+'%'));
         var deg=''; for(var i=0;i<3;i++){ var nv=i+1; var dc=(c.seq>=3&&nv===3)?'ind-atual':(c.seq===nv?'ind-atual':((c.seq>nv||(c.seq>=3&&nv<3))?'ind-feito':'ind-fut')); deg+='<div class="ind-deg '+dc+'" style="min-height:'+[54,74,94][i]+'px"><div class="v">'+fmtBRL(c.escada[i])+'</div><div class="m">'+(nv===3?'Mês 3+':'Mês '+nv)+'</div></div>'; }
         var cap=c.seq<=0?('Bata a meta este mês e a escada começa em '+fmtBRL(c.escada[0])+'. Cada mês seguido batendo, ela sobe.'):(c.seq===1?('Você está no mês 1, com '+fmtBRL(c.escada[0])+' garantidos. Bata de novo e sobe pra '+fmtBRL(c.escada[1])+'.'):(c.seq===2?('Mês 2, '+fmtBRL(c.escada[1])+' garantidos. Mais um e trava no teto de '+fmtBRL(c.escada[2])+'.'):('No topo, '+fmtBRL(c.escada[2])+' por mês. Mantenha pra não zerar.')));
         var mesa=(aUmPasso>0||naMesa>0)?'<div class="ind-mesa"><div style="font-size:22px;color:#b8860b">●</div><div><div class="t">'+(aUmPasso>0?'NA MESA, A UM PASSO: '+fmtBRL(aUmPasso):'AINDA NA MESA: '+fmtBRL(naMesa))+'</div><div class="d">'+(aUmPasso>0?'corra que esse dinheiro é seu ainda este mês':'em bônus que você ainda pode bater')+'</div></div></div>':'';
-        return '<div class="ind-card ind-hero"><div class="rot">'+c.nome+' · seu ganho este mês</div><div class="big">'+fmtBRL(ganho)+'</div><div class="sub">fixo '+fmtBRL(c.fixo)+' + comissão '+fmtBRL(com)+(escada?' + consistência '+fmtBRL(escada):'')+'</div>'+(ritmo>0?'<div class="ind-proj"><span style="font-size:13px;color:#5f5f5f">Projeção no ritmo de hoje</span><b>'+fmtBRL(projGanho)+'</b></div>':'')+'</div>'
+        return '<div class="ind-card ind-hero"><div class="rot">'+c.nome+' · seu ganho este mês</div><div class="big">'+fmtBRL(ganho)+'</div><div class="sub">fixo '+fmtBRL(c.fixo)+' + comissão '+fmtBRL(com)+(escada?' + consistência '+fmtBRL(escada):'')+'</div>'+(rp>0?'<div class="ind-proj"><span style="font-size:13px;color:#5f5f5f">Projeção no ritmo de hoje</span><b>'+fmtBRL(projGanho)+'</b></div>':'')+'</div>'
           +'<div class="ind-card"><div class="ind-lm"><span>'+c.rotuloFat+'</span><span><b>'+fmtBRL(c.fat)+'</b> de '+fmtBRL(c.mF)+'</span></div><div class="ind-bar"><div style="width:'+Math.min(c.mF>0?c.fat/c.mF*100:0,100)+'%;background:'+col+'"></div></div><div class="ind-nota" style="color:'+col+'">▲ comissão '+pctFmt(pct)+'% agora · '+prox+'</div></div>'
           +'<div class="ind-card"><div class="ind-tit">Seus bônus</div>'+bonusHTML+'</div>'
           +'<div class="ind-card"><div class="ind-tit">Sua escada de consistência</div><div class="ind-esc">'+deg+'</div><div class="ind-cap">'+cap+'</div><div class="ind-cap" style="color:#9a9a9a;margin-top:6px">Se faltar a meta, a escada zera, mas a comissão do mês continua sua.</div></div>'
           +mesa;
     }
     function cardVend(nome,esc,fixo){
-        return montar({nome:nome,fixo:fixo,fat:real(esc,'faturamento'),mF:meta(esc,'faturamento'),tiers:[0.010,0.0115,0.013],escada:[200,400,600],seq:Math.round(meta(esc,'escada'))||0,rotuloFat:'Seu faturamento',
+        return montar({nome:nome,esc:esc,fixo:fixo,fat:real(esc,'faturamento'),mF:meta(esc,'faturamento'),tiers:[0.010,0.0115,0.013],escada:[200,400,600],seq:Math.round(meta(esc,'escada'))||0,rotuloFat:'Seu faturamento',
           bonuses:[
             {lbl:'Ticket médio',real:(real(esc,'carros')>0?real(esc,'faturamento')/real(esc,'carros'):0),meta:meta(esc,'ticket'),premio:300,fmt:'money'},
             {lbl:'Óleo (L)',real:real(esc,'oleo'),meta:meta(esc,'oleo'),premio:250,fmt:'num'},
@@ -2875,7 +2903,7 @@ async function renderComissoes(){
           ]});
     }
     function cardSamile(){
-        return montar({nome:'Samille',fixo:1819,fat:real('samile','agendamento_fat'),mF:meta('samile','agendamento_fat'),tiers:[0.007,0.0085,0.0095],escada:[120,240,360],seq:Math.round(meta('samile','escada'))||0,rotuloFat:'Faturamento dos carros que você agendou',
+        return montar({nome:'Samille',esc:'samile',fixo:1819,fat:real('samile','agendamento_fat'),mF:meta('samile','agendamento_fat'),tiers:[0.007,0.0085,0.0095],escada:[120,240,360],seq:Math.round(meta('samile','escada'))||0,rotuloFat:'Faturamento dos carros que você agendou',
           bonuses:[ {lbl:'Carros agendados',real:real('samile','agendamento_os'),meta:meta('samile','agendamento_os'),premio:500,fmt:'num'} ]});
     }
     var aviso='<div class="ind-aviso">Bata a meta da oficina e o time leva o prêmio coletivo. Os bônus individuais só contam quando a meta do indicador está cadastrada na Abertura de mês.</div>';
