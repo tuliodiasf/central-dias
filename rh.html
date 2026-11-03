@@ -26,7 +26,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 a{text-decoration:none}
 .shell{display:flex;min-height:100vh}
 .sidebar{width:230px;background:var(--primary);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:200}
-.main{margin-left:230px;flex:1;padding:26px 30px;min-height:100vh}
+.main{margin-left:230px;flex:1;padding:26px 30px;min-height:100vh;min-width:0}
+.card,.met,section.page{min-width:0}
 .menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:300;background:var(--primary);color:#fff;border:none;width:44px;height:44px;border-radius:10px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.28)}
 .menu-toggle svg{width:24px;height:24px}
 .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
@@ -62,12 +63,11 @@ a{text-decoration:none}
 .bgreen{background:var(--green);color:#fff}.bgreen:hover{background:#15803d}
 .card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border)}
 .ctitle{font-size:13.5px;font-weight:700;margin-bottom:14px}
-.mets{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
-@media(max-width:1250px){ .mets{grid-template-columns:repeat(3,1fr)} }
-@media(max-width:640px){ .mets{grid-template-columns:repeat(2,1fr)} }
+.mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+@media(max-width:640px){ .mets{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .met{background:var(--card);border-radius:var(--radius);padding:16px 18px;border:1px solid var(--border);cursor:pointer}
 .mlbl{font-size:10px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
-.mval{font-size:24px;font-weight:900;line-height:1}
+.mval{font-size:clamp(18px,2vw,24px);font-weight:900;line-height:1.1;overflow-wrap:anywhere}
 .msub{font-size:11px;color:var(--gray);margin-top:4px}
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:100px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
 .b-g{background:var(--green-bg);color:var(--green)}
@@ -115,6 +115,10 @@ select{cursor:pointer}
 .tab2.on{background:var(--primary);color:#fff;border-color:var(--primary)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:1000px){ .grid2{grid-template-columns:1fr} }
+.cbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ctools{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.ctools .btn,.ctools select{white-space:nowrap}
+#tb-folha td:first-child{min-width:170px}
 .linha-anx{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--gray-bg);border-radius:8px;margin-bottom:8px;font-size:12.5px}
 /* modo embutido (iframe dentro da Central): esconde o menu lateral e mostra abas no topo */
 body.embedded .sidebar,body.embedded .menu-toggle{display:none!important}
@@ -210,11 +214,11 @@ body.embedded .rh-topnav{display:flex}
     <div><div class="ptitle">VALES &amp; ADIANTAMENTOS</div><div class="psub">Todo vale gera parcelas de desconto e pode ser assinado pelo celular (link) ou no papel</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn bs" onclick="atualizarAceites();toast('Assinaturas atualizadas')">↻ Atualizar assinaturas</button><button class="btn bp" onclick="abrirVale()">+ Novo vale</button></div>
   </div>
-  <div class="mets" id="vales-mets" style="grid-template-columns:repeat(5,1fr)"></div>
+  <div class="mets" id="vales-mets"></div>
   <div class="card" style="margin-bottom:16px">
-    <div class="ctitle">💳 DESCONTOS NA FOLHA — <select id="v-comp" onchange="renderVales()" style="width:auto;display:inline-block;padding:4px 10px;font-size:12px"></select>
-      <span id="folha-resumo" style="margin-left:8px"></span>
-      <span style="float:right;display:inline-flex;gap:8px"><button class="btn bs bsm" onclick="printRelBaixas()">🖨️ Relatório de baixas</button><button class="btn bs bsm" onclick="printFolha()">🖨️ Folha de descontos</button><select id="v-relesc" style="width:auto;padding:4px 8px;font-size:12px" title="Quem entra no relatório"><option value="semcom">CLT sem comissão</option><option value="todos">Todos com desconto</option></select><button class="btn bp bsm" onclick="gerarRelVales($('v-relesc').value)">📄 Relatório de vales (imprimir/PDF)</button></span></div>
+    <div class="ctitle cbar"><span>💳 DESCONTOS NA FOLHA</span><select id="v-comp" onchange="renderVales()" style="width:auto;display:inline-block;padding:4px 10px;font-size:12px"></select>
+      <span id="folha-resumo"></span>
+      <span class="ctools"><button class="btn bs bsm" onclick="printRelBaixas()">🖨️ Relatório de baixas</button><button class="btn bs bsm" onclick="printFolha()">🖨️ Folha de descontos</button><select id="v-relesc" style="width:auto;padding:4px 8px;font-size:12px" title="Quem entra no relatório"><option value="semcom">CLT sem comissão</option><option value="todos">Todos com desconto</option></select><button class="btn bp bsm" onclick="gerarRelVales($('v-relesc').value)">📄 Relatório de vales (imprimir/PDF)</button></span></div>
     <div class="tw"><table><thead><tr><th>Funcionário</th><th>Detalhe / baixa (Keyla)</th><th style="text-align:right">Total a descontar</th></tr></thead><tbody id="tb-folha"></tbody></table></div>
   </div>
   <div class="card">
@@ -293,7 +297,7 @@ body.embedded .rh-topnav{display:flex}
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><div class="ctitle" style="margin:0">📎 NF EMITIDAS PARA A DIAS — RESUMO DO MÊS POR PRESTADOR</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn bs bsm" onclick="imprimirNfDias()">🖨️ Imprimir resumo do mês</button><button class="btn bp bsm" onclick="abrirNfd()">+ Lançar NF</button></div></div>
-    <div class="mets" id="nfd-mets" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"></div>
+    <div class="mets" id="nfd-mets" style="margin-bottom:12px"></div>
     <div class="tw"><table><thead><tr><th>Prestador / NF</th><th>Emissão</th><th>Nº NF</th><th>Referente</th><th>Anexo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody id="tb-nfdias"></tbody></table></div>
     <p style="font-size:11.5px;color:var(--gray);margin-top:10px">Cada NF fica vinculada ao prestador que emitiu e ao mês de competência (o mês do serviço, mesmo que a nota saia no começo do mês seguinte). Clique no nome do prestador para abrir ou fechar o detalhe das notas.</p>
   </div>
@@ -310,7 +314,7 @@ body.embedded .rh-topnav{display:flex}
     <div><div class="ptitle">13º SALÁRIO</div><div class="psub">1ª parcela paga no mês de aniversário de cada um — assim dezembro não pesa na folha · 2ª parcela até 20/12</div></div>
     <div style="display:flex;gap:8px;align-items:center"><select id="dec-ano" onchange="renderDecimo()" style="width:auto"></select><button class="btn bp" onclick="abrirDec()">+ Lançar pagamento</button></div>
   </div>
-  <div class="mets" id="dec-mets" style="grid-template-columns:repeat(4,1fr)"></div>
+  <div class="mets" id="dec-mets"></div>
   <div class="card" style="margin-bottom:16px">
     <div class="ctitle">CONTROLE POR FUNCIONÁRIO (CLT)</div>
     <div class="tw"><table><thead><tr><th>Funcionário</th><th>Admissão</th><th>Aniversário</th><th>1ª parcela — mês previsto</th><th>1ª parcela — paga</th><th>2ª parcela — paga</th><th style="text-align:right">Total pago no ano</th><th>Situação</th></tr></thead><tbody id="tb-decimo"></tbody></table></div>
@@ -2273,11 +2277,24 @@ function relOpcoes(D){
 const KIA_PCT=0.25;
 const ehKia=it=>/KIA/i.test(it.grupo||'');
 const ehKiaSuspeito=it=>!ehKia(it)&&/\(KIA\)/i.test(it.item||'');
+/* 03/11/2026 · GRUPOS COM % PRÓPRIO (ex.: RETIFICA DISCO 30%): todo grupo cujo % no Oficina Inteligente for diferente de 45%
+   sai da régua e paga o % do próprio grupo, sempre. KIA continua com a regra própria (25%). */
+const PCT_PADRAO=45;
+/* 03/11/2026 · decisão do Tulio: estes códigos são RETÍFICA DE DISCO DE FREIO e pagam 30% mesmo quando vierem lançados em outro grupo. */
+const COD_FIXO={'9847455':{grupo:'RETIFICA DISCO',pct:30},'9847457':{grupo:'RETIFICA DISCO',pct:30},'S8854':{grupo:'RETIFICA DISCO',pct:30}};
+const codFixo=it=>COD_FIXO[String(it.codigo||'').trim().toUpperCase()]||null;
+const grpFixo=it=>{const c=codFixo(it);return c?c.grupo:(it.grupo||'OUTRO');};
+const pctFixo=it=>{if(ehKia(it))return null;const c=codFixo(it);if(c)return c.pct/100;const p=+it.pct;return (p>0&&Math.abs(p-PCT_PADRAO)>0.001)?p/100:null;};
+const somaFx=its=>{const g={};its.forEach(i=>{const p=pctFixo(i);if(p===null)return;const k=grpFixo(i)+'|'+p;
+  (g[k]=g[k]||{grupo:grpFixo(i),pct:p,mo:0});g[k].mo+=+i.faturamento||0;});
+  return Object.values(g).map(x=>({grupo:x.grupo,pct:x.pct,mo:Math.round(x.mo*100)/100,v:Math.round(x.mo*x.pct*100)/100}));};
+const fxRows=(fx,cls)=>(fx||[]).map(x=>'<tr><td>Mão de obra '+x.grupo+' (% próprio do grupo, fora da régua)</td><td class="n">'+fmt(x.mo)+'</td><td class="n">× '+pctBR(x.pct)+'</td><td class="n">'+(cls?'<b>':'')+fmt(x.v)+(cls?'</b>':'')+'</td></tr>').join('');
+const fxTxt=fx=>(fx||[]).map(x=>' + '+x.grupo+' '+fmt(x.mo)+' × '+pctBR(x.pct)+' = '+fmt(x.v)).join('');
 async function carregarMecanicos(mes,ant){
   const iniJan=new Date(+ant.slice(0,4),+ant.slice(5,7)-1,1); iniJan.setDate(iniJan.getDate()-100);
   const fimMes=mes+'-'+String(new Date(+mes.slice(0,4),+mes.slice(5,7),0).getDate()).padStart(2,'0');
   const [sm,oe,od,oc,cf,rg,fr,ft]=await Promise.all([
-    supa.from('servicos_mecanicos').select('os,data,placa,veiculo,cliente,item,grupo,mecanico,faturamento,pct').eq('competencia',mes).range(0,4999),
+    supa.from('servicos_mecanicos').select('os,data,placa,veiculo,cliente,codigo,item,grupo,mecanico,faturamento,pct').eq('competencia',mes).range(0,4999),
     supa.from('vw_os_efetiva').select('competencia,os,mecanico,placa,veiculo,data_os,cliente,fat,classe,tem_checklist,tem_checkout,motivo_classe').in('competencia',[mes,ant]).range(0,4999),
     supa.from('vw_os_dupla').select('competencia,os,dupla,placa,mecanicos,classe,tem_checklist,tem_checkout').in('competencia',[mes,ant]).range(0,4999),
     supa.from('ocorrencias_tecnicas').select('id,data,mecanico,tipo,os,placa,descricao').is('cancelado_em',null).gte('data',iniJan.toISOString().slice(0,10)).lte('data',fimMes).order('data'),
@@ -2337,7 +2354,9 @@ function montarMecanicos(mes,ant,placMes,placAnt,X,avisos,placDupla){ placDupla=
     const mo=its.reduce((a,i)=>a+(+i.faturamento||0),0);
     const kia=its.filter(ehKia).reduce((a,i)=>a+(+i.faturamento||0),0);
     const susp=its.filter(ehKiaSuspeito);
-    const normal=mo-kia;
+    const fx=somaFx(its), fixo=fx.reduce((a,x)=>a+x.mo,0), vFixo=fx.reduce((a,x)=>a+x.v,0);
+    const normal=Math.round((mo-kia-fixo)*100)/100;
+    fx.forEach(x=>avisos.push(nome+': '+fmt(x.mo)+' em '+x.grupo+' pago a '+pctBR(x.pct)+' (% próprio do grupo, fora da régua) = '+fmt(x.v)+'.'));
     let pctA=0.45, origem='45% fixo (período sombra)';
     if(mes>='2026-09'){
       if(pm&&!pm.parcial){pctA=+pm.pct_calculado||0.45;origem='placar de '+compLblS(mes)}
@@ -2346,14 +2365,14 @@ function montarMecanicos(mes,ant,placMes,placAnt,X,avisos,placDupla){ placDupla=
     const vNormal=Math.round(normal*pctA*100)/100, vKia=Math.round(kia*KIA_PCT*100)/100;
     // OS do mês (conferência por placa/OS)
     const porOS={};
-    its.forEach(i=>{const k=i.os;(porOS[k]=porOS[k]||{os:i.os,data:i.data,placa:i.placa,veiculo:i.veiculo,cliente:i.cliente,normal:0,kia:0,itens:0,susp:false});
-      if(ehKia(i))porOS[k].kia+=+i.faturamento;else porOS[k].normal+=+i.faturamento; porOS[k].itens++; if(ehKiaSuspeito(i))porOS[k].susp=true;});
+    its.forEach(i=>{const k=i.os;(porOS[k]=porOS[k]||{os:i.os,data:i.data,placa:i.placa,veiculo:i.veiculo,cliente:i.cliente,normal:0,kia:0,fixo:0,itens:0,susp:false});
+      if(ehKia(i))porOS[k].kia+=+i.faturamento;else if(pctFixo(i)!==null)porOS[k].fixo+=+i.faturamento;else porOS[k].normal+=+i.faturamento; porOS[k].itens++; if(ehKiaSuspeito(i))porOS[k].susp=true;});
     const ef=X.osE.filter(o=>o.competencia===mes&&o.mecanico===nome);
     const oss=Object.values(porOS).map(o=>{const e=ef.find(x=>x.os==o.os)||{};const parc=X.itens.filter(i=>i.os==o.os&&i.mecanico!==nome).map(i=>i.mecanico);
       return {...o,classe:e.classe||'',chk:!!e.tem_checklist,cko:!!e.tem_checkout,parceiros:[...new Set(parc)],
         retorno:X.ocs.some(c=>c.tipo==='retorno'&&c.mecanico===nome&&+c.os===+o.os)}}).sort((a,b)=>(a.data<b.data?-1:a.data>b.data?1:a.os-b.os));
-    if(susp.length) avisos.push(nome+': '+susp.length+' item(ns) de garantia KIA (S18964) fora do grupo SERVIÇOS KIA, pagos na régua normal ('+fmt(susp.reduce((a,i)=>a+(+i.faturamento),0))+')'+(mes<='2026-09'?'. Decisão do Tulio: em set/2026 permanece assim; a partir de out/2026 o código foi movido para o grupo KIA.':'. O código deveria estar no grupo SERVIÇOS KIA: corrigir o cadastro no Oficina Inteligente.'));
-    return {nome,dupla:(pm&&pm.dupla)||nome,mo,kia,normal,pctA,origem,vNormal,vKia,valor:vNormal+vKia,os:oss,susp,
+    if(susp.length) avisos.push(nome+': '+susp.length+' item(ns) de garantia KIA (S18964) fora do grupo SERVIÇOS KIA, pagos na régua normal ('+fmt(susp.reduce((a,i)=>a+(+i.faturamento),0))+')'+(mes<='2026-10'?'. Decisão do Tulio: até out/2026 permanece a 45% na régua; a partir de nov/2026 o código deve estar no grupo SERVIÇOS KIA.':'. O código deveria estar no grupo SERVIÇOS KIA: corrigir o cadastro no Oficina Inteligente.'));
+    return {nome,dupla:(pm&&pm.dupla)||nome,mo,kia,normal,pctA,origem,vNormal,vKia,fx,fixo,vFixo,valor:Math.round((vNormal+vKia+vFixo)*100)/100,os:oss,susp,
       ptsMes:pm?+pm.pontos:0,pctMes:pm?+pm.pct_calculado:0,parcial:pm?!!pm.parcial:true,
       expAnt:explicaPlacar(pa,ant,X,nome),expMes:explicaPlacar(pm,mes,X,nome)};
   }).filter(m=>m.mo>0);
@@ -2368,13 +2387,14 @@ function montarMecanicos(mes,ant,placMes,placAnt,X,avisos,placDupla){ placDupla=
     if(pd&&!pd.parcial)pct=+pd.pct_calculado;
     else{pct=pd?+pd.pct_calculado:ms.reduce((a,m)=>a+m.pctA,0)/ms.length;avisos.push('Placar da empresa '+d+(pd?' ainda PARCIAL':' não encontrado')+': % provisório.');}
     const mo=ms.reduce((a,m)=>a+m.normal,0), kia=ms.reduce((a,m)=>a+m.kia,0);
-    const vN=Math.round(mo*pct*100)/100, vK=Math.round(kia*KIA_PCT*100)/100, tot=Math.round((vN+vK)*100);
+    const fxE=somaFx(X.itens.filter(i=>ms.some(m=>m.nome===i.mecanico))), vF=fxE.reduce((a,x)=>a+x.v,0), fixoE=fxE.reduce((a,x)=>a+x.mo,0);
+    const vN=Math.round(mo*pct*100)/100, vK=Math.round(kia*KIA_PCT*100)/100, tot=Math.round((vN+vK+vF)*100);
     const parte=Math.floor(tot/ms.length);
     const mp={};
-    ms.forEach(m=>m.os.forEach(o=>{const k=o.os;const r=(mp[k]=mp[k]||{os:o.os,data:o.data,placa:o.placa,veiculo:o.veiculo,classe:o.classe,chk:false,cko:false,ret:[],susp:false,normal:0,kia:0,quem:[]});
-      r.normal+=o.normal;r.kia+=o.kia;r.quem.push({nome:m.nome,normal:o.normal,kia:o.kia});r.chk=r.chk||o.chk;r.cko=r.cko||o.cko;if(o.classe==='ELEGIVEL')r.classe='ELEGIVEL';if(o.retorno)r.ret.push(m.nome);if(o.susp)r.susp=true;}));
+    ms.forEach(m=>m.os.forEach(o=>{const k=o.os;const r=(mp[k]=mp[k]||{os:o.os,data:o.data,placa:o.placa,veiculo:o.veiculo,classe:o.classe,chk:false,cko:false,ret:[],susp:false,normal:0,kia:0,fixo:0,quem:[]});
+      r.normal+=o.normal;r.kia+=o.kia;r.fixo+=o.fixo||0;r.quem.push({nome:m.nome,normal:o.normal,kia:o.kia,fixo:o.fixo||0});r.chk=r.chk||o.chk;r.cko=r.cko||o.cko;if(o.classe==='ELEGIVEL')r.classe='ELEGIVEL';if(o.retorno)r.ret.push(m.nome);if(o.susp)r.susp=true;}));
     const osDupla=Object.values(mp).sort((a,b)=>(a.data<b.data?-1:a.data>b.data?1:a.os-b.os));
-    const emp={dupla:d,pct,mo,kia,vN,vK,tot:tot/100,n:ms.length,pd:pd||null,osDupla,membros:ms.map(m=>({nome:m.nome,pctA:m.pctA,normal:m.normal,kia:m.kia,valorInd:m.valor}))};
+    const emp={dupla:d,pct,mo,kia,vN,vK,fx:fxE,fixo:fixoE,vF,tot:tot/100,n:ms.length,pd:pd||null,osDupla,membros:ms.map(m=>({nome:m.nome,pctA:m.pctA,normal:m.normal,kia:m.kia,valorInd:m.valor}))};
     ms.forEach((m,i)=>{m.valorInd=m.valor;m.emp=emp;m.valor=(i===ms.length-1?tot-parte*(ms.length-1):parte)/100;});
   });
   out.sort((a,b)=>b.valor-a.valor||a.nome.localeCompare(b.nome));
@@ -2397,7 +2417,7 @@ function renderMecTela(D,mes){
   const rows=D.mecs.map((m,i)=>'<tr style="cursor:pointer" onclick="mecAberto[\''+m.nome+'\']=!mecAberto[\''+m.nome+'\'];renderCom()"><td><b>'+m.nome+'</b><div style="font-size:11px;color:var(--gray)">'+m.dupla+' · '+m.os.length+' OS</div></td>'
     +'<td>'+fmt(m.normal)+'</td><td>'+(m.kia?fmt(m.kia):'—')+'</td>'
     +'<td>'+(m.emp?'<span class="badge b-g">'+pctBR(m.emp.pct)+' empresa</span> <span style="font-size:11px;color:var(--gray)">individual '+pctBR(m.pctA)+'</span>':'<span class="badge '+(m.pctA>=0.45?'b-g':'b-y')+'">'+pctBR(m.pctA)+'</span> <span style="font-size:11px;color:var(--gray)">'+m.origem+'</span>')+'</td>'
-    +'<td style="text-align:right"><b>'+fmt(m.valor)+'</b><div style="font-size:10.5px;color:var(--gray)">'+(m.emp?'metade de '+fmt(m.emp.tot)+' (empresa)':fmt(m.vNormal)+(m.kia?' + KIA '+fmt(m.vKia):''))+'</div></td>'
+    +'<td style="text-align:right"><b>'+fmt(m.valor)+'</b><div style="font-size:10.5px;color:var(--gray)">'+(m.emp?'metade de '+fmt(m.emp.tot)+' (empresa)':fmt(m.vNormal)+(m.kia?' + KIA '+fmt(m.vKia):'')+(m.vFixo?' + % próprio '+fmt(m.vFixo):''))+'</div></td>'
     +'<td style="font-size:11.5px">'+m.ptsMes.toFixed(1).replace('.',',')+' pts → <b>'+pctBR(m.pctMes)+'</b>'+(m.parcial?' (parcial)':'')+'</td></tr>'
     +(mecAberto[m.nome]?'<tr><td colspan="6" style="background:var(--gray-bg)">'
       +'<div style="font-weight:800;font-size:12px;margin-top:4px">POR QUE '+pctBR(m.pctA)+' EM '+compLbl(mes).toUpperCase()+' · placar de '+compLbl(mes)+'</div>'+blocoHtmlTela(m.expMes)
@@ -2411,7 +2431,7 @@ function renderMecTela(D,mes){
     +'<span style="font-size:11.5px;color:var(--gray)">Clique no nome para ver o porquê do %.</span></div>'
     +'<div class="tw"><table><thead><tr><th>Técnico</th><th>MO na régua</th><th>MO KIA (25%)</th><th>% aplicado</th><th style="text-align:right">Repasse</th><th>Pontos do mês</th></tr></thead><tbody>'+rows
     +'<tr><td><b>TOTAL</b></td><td><b>'+fmt(tn)+'</b></td><td><b>'+fmt(tk)+'</b></td><td></td><td style="text-align:right"><b>'+fmt(tot)+'</b></td><td></td></tr></tbody></table></div>'
-    +'<p style="font-size:11.5px;color:var(--gray);margin-top:10px">Regra: dupla é empresa. MO dos dois × % do placar da empresa (aba Por dupla) + MO do grupo SERVIÇOS KIA × 25% (norma da montadora, fora da régua), dividido por 2. Vales descontados de cada um. Retorno conta só se lançado dentro do mês.</p></div>';
+    +'<p style="font-size:11.5px;color:var(--gray);margin-top:10px">Regra: dupla é empresa. MO dos dois × % do placar da empresa (aba Por dupla) + MO do grupo SERVIÇOS KIA × 25% (norma da montadora, fora da régua) + MO dos grupos com % próprio diferente de 45% (ex.: RETIFICA DISCO 30%) × % do grupo, fora da régua, dividido por 2. Vales descontados de cada um. Retorno conta só se lançado dentro do mês.</p></div>';
 }
 /* ---------- impressão ---------- */
 function paginasMecanico(m,K,mes){
@@ -2428,19 +2448,20 @@ function paginasMecanico(m,K,mes){
   const linhas=m.os.map(o=>'<tr><td>'+dBr2(o.data)+'</td><td>'+o.os+'</td><td>'+o.placa+'</td><td>'+(o.veiculo||'')+'</td><td class="n">'+K.fmt0(o.normal)+'</td><td class="n">'+(o.kia?K.fmt0(o.kia):'—')+'</td>'
     +'<td class="c">'+(o.classe==='ELEGIVEL'?(o.chk?'<span class="sim">✔</span>':'<span class="nao">✖</span>'):'<span class="mut">n/e</span>')+'</td>'
     +'<td class="c">'+(o.classe==='ISENTA'?'<span class="mut">n/e</span>':(o.cko?'<span class="sim">✔</span>':'<span class="nao">✖</span>'))+'</td>'
-    +'<td>'+(o.retorno?'<span class="nao">RETORNO</span> ':'')+(o.parceiros.length?'com '+o.parceiros.map(p=>p.split(' ')[0]).join(', '):'')+(o.susp?' (KIA?)':'')+'</td></tr>').join('');
+    +'<td>'+(o.retorno?'<span class="nao">RETORNO</span> ':'')+(o.parceiros.length?'com '+o.parceiros.map(p=>p.split(' ')[0]).join(', '):'')+(o.susp?' (KIA?)':'')+(o.fixo?' + '+K.fmt0(o.fixo)+' em grupo de % próprio':'')+'</td></tr>').join('');
   return '<div class="pg">'+K.H('Repasse e conferência')+K.ID(m.nome,'Mecânico · dupla '+m.dupla,'PJ · repasse sobre mão de obra','Nota fiscal em '+compLbl(prox))
     +(m.emp?(()=>{const E=m.emp;
       return K.SEC(1,'Repasse de '+compLbl(mes)+' · empresa '+E.dupla)
       +'<table><tbody><tr><td>Mão de obra na régua da empresa</td><td class="n">'+fmt(E.mo)+'</td><td class="n">× '+pctBR(E.pct)+(E.pd?' ('+String(E.pd.pontos).replace('.',',')+' pts)':'')+'</td><td class="n">'+fmt(E.vN)+'</td></tr>'
       +(E.kia?'<tr><td>Mão de obra SERVIÇOS KIA da empresa</td><td class="n">'+fmt(E.kia)+'</td><td class="n">× 25%</td><td class="n">'+fmt(E.vK)+'</td></tr>':'')
+      +fxRows(E.fx)
       +'<tr class="z"><td colspan="3"><b>Repasse da empresa</b></td><td class="n"><b>'+fmt(E.tot)+'</b></td></tr>'
       +'<tr><td colspan="3"><b>Sua parte (÷ '+E.n+')</b></td><td class="n"><b>'+fmt(m.valor)+'</b></td></tr></tbody></table>'
       +'<div class="calc">Placar da empresa e conferência por OS na página da empresa.</div>';})()
     :K.SEC(1,'Repasse de '+compLbl(mes))
     +'<table><tbody><tr><td>Mão de obra na régua ('+m.os.length+' OS)</td><td class="n">'+fmt(m.normal)+'</td><td class="n">× '+pctBR(m.pctA)+'</td><td class="n"><b>'+fmt(m.vNormal)+'</b></td></tr>'
-    +'<tr><td>Mão de obra SERVIÇOS KIA (norma da montadora)</td><td class="n">'+fmt(m.kia)+'</td><td class="n">× 25%</td><td class="n"><b>'+fmt(m.vKia)+'</b></td></tr></tbody></table>'
-    +'<div class="calc">O '+pctBR(m.pctA)+' vem do '+m.origem+'. Serviço do grupo KIA fica fora da régua e paga 25% sempre.</div>')
+    +'<tr><td>Mão de obra SERVIÇOS KIA (norma da montadora)</td><td class="n">'+fmt(m.kia)+'</td><td class="n">× 25%</td><td class="n"><b>'+fmt(m.vKia)+'</b></td></tr>'+fxRows(m.fx,true)+'</tbody></table>'
+    +'<div class="calc">O '+pctBR(m.pctA)+' vem do '+m.origem+'. Serviço do grupo KIA fica fora da régua e paga 25% sempre. Grupo com % próprio diferente de 45% (ex.: RETIFICA DISCO) também fica fora da régua e paga o % do grupo.</div>')
     +K.TOT(m.emp?'Total do repasse (sua parte)':'Total do repasse',m.valor)
     +(m.emp?'':exp(m.expMes,'Por que '+pctBR(m.pctA)+' · placar de '+compLbl(mes),2))
     +(m.emp?'':K.SEC(3,'Conferência por OS · '+compLbl(mes))
@@ -2452,7 +2473,7 @@ function paginasMecanico(m,K,mes){
 /* 01/10/2026 · conferência por OS da EMPRESA: todas as OS da dupla e, na frente, para quem cada item foi apontado */
 function tabelaOsDupla(lista,K,destaque){
   const pn=n=>n.split(' ')[0].replace('M.MATHEUS','MATHEUS');
-  const ap=o=>o.quem.map(q=>{const v=q.normal+q.kia, me=destaque&&q.nome===destaque;
+  const ap=o=>o.quem.map(q=>{const v=q.normal+q.kia+(q.fixo||0), me=destaque&&q.nome===destaque;
     return '<span style="white-space:nowrap'+(me?';font-weight:800;color:#cc0000':'')+'">'+pn(q.nome)+(o.quem.length>1?' '+K.fmt0(v):'')+'</span>'}).join(' + ');
   const meu=o=>destaque&&o.quem.some(q=>q.nome===destaque);
   const tN=lista.reduce((a,o)=>a+o.normal,0), tK=lista.reduce((a,o)=>a+o.kia,0);
@@ -2461,7 +2482,7 @@ function tabelaOsDupla(lista,K,destaque){
     +lista.map(o=>'<tr'+(meu(o)?' style="background:#fff7f7"':'')+'><td>'+dBr2(o.data)+'</td><td>'+o.os+'</td><td>'+o.placa+'</td><td>'+(o.veiculo||'')+'</td><td>'+ap(o)+'</td><td class="n">'+K.fmt0(o.normal)+'</td><td class="n">'+(o.kia?K.fmt0(o.kia):'—')+'</td>'
       +'<td class="c">'+(o.classe==='ELEGIVEL'?(o.chk?'<span class="sim">✔</span>':'<span class="nao">✖</span>'):'<span class="mut">n/e</span>')+'</td>'
       +'<td class="c">'+(o.classe==='ISENTA'?'<span class="mut">n/e</span>':(o.cko?'<span class="sim">✔</span>':'<span class="nao">✖</span>'))+'</td>'
-      +'<td>'+(o.ret.length?'<span class="nao">RETORNO '+o.ret.map(pn).join(', ')+'</span>':'')+(o.susp?' (KIA?)':'')+'</td></tr>').join('')
+      +'<td>'+(o.ret.length?'<span class="nao">RETORNO '+o.ret.map(pn).join(', ')+'</span>':'')+(o.susp?' (KIA?)':'')+(o.fixo?' + '+K.fmt0(o.fixo)+' em grupo de % próprio':'')+'</td></tr>').join('')
     +'<tr class="z"><td colspan="5"><b>Total '+lista.length+' OS da empresa'+(destaque?' · '+nMeu+' com você':'')+(juntas?' · '+juntas+' feita(s) pelos dois':'')+'</b></td><td class="n"><b>'+K.fmt0(tN)+'</b></td><td class="n"><b>'+K.fmt0(tK)+'</b></td><td colspan="3"></td></tr></tbody></table>'
     +'<div class="calc">Apontado para: técnico a quem o serviço foi lançado no Oficina Inteligente; quando a OS foi dividida, mostra o valor de cada um.'+(destaque?' Em destaque, as OS com você.':'')+' n/e = não exigido (checklist válido nos últimos 90 dias, ou serviço avulso).</div>';
 }
@@ -2477,6 +2498,7 @@ function calcEmpresaHtml(E,ms,K){
     +'<table style="margin-top:8px"><tbody>'
     +'<tr><td>Mão de obra na régua da empresa</td><td class="n">'+fmt(E.mo)+'</td><td class="n">× '+pctBR(E.pct)+'</td><td class="n">'+fmt(E.vN)+'</td></tr>'
     +(E.kia?'<tr><td>Mão de obra SERVIÇOS KIA</td><td class="n">'+fmt(E.kia)+'</td><td class="n">× 25%</td><td class="n">'+fmt(E.vK)+'</td></tr>':'')
+    +fxRows(E.fx)
     +'<tr class="z"><td colspan="3"><b>Repasse da empresa</b></td><td class="n"><b>'+fmt(E.tot)+'</b></td></tr>'
     +ms.map(m=>'<tr><td colspan="3">'+m.nome+' (÷ '+E.n+')</td><td class="n"><b>'+fmt(m.valor)+'</b></td></tr>').join('')
     +'</tbody></table>';
@@ -2497,7 +2519,7 @@ function paginaDupla(dupla,ms,K,mes){
     :K.SEC(1,'Resumo da dupla')
     +'<table class="sm"><thead><tr><th>Mecânico</th><th class="n">OS</th><th class="n">MO régua</th><th class="n">%</th><th class="n">MO KIA</th><th class="n">Repasse</th><th class="n">Pontos → %</th></tr></thead><tbody>'+res
     +'<tr class="z"><td colspan="5"><b>Total da empresa</b></td><td class="n"><b>'+fmt(tot)+'</b></td><td></td></tr></tbody></table>'
-    +(E?'<div class="why" style="margin-top:6px">Regra da empresa: mão de obra dos dois '+fmt(E.mo)+' × placar da empresa '+(E.pd?String(E.pd.pontos).replace('.',',')+' pts = ':'')+pctBR(E.pct)+' = '+fmt(E.vN)+(E.kia?' + KIA '+fmt(E.kia)+' × 25% = '+fmt(E.vK):'')+' → repasse da empresa '+fmt(E.tot)+', dividido por '+E.n+': <b>'+ms.map(m=>m.nome.split(' ')[0]+' '+fmt(m.valor)).join(' · ')+'</b>. Vales descontados de cada um.</div>':''))
+    +(E?'<div class="why" style="margin-top:6px">Regra da empresa: mão de obra dos dois '+fmt(E.mo)+' × placar da empresa '+(E.pd?String(E.pd.pontos).replace('.',',')+' pts = ':'')+pctBR(E.pct)+' = '+fmt(E.vN)+(E.kia?' + KIA '+fmt(E.kia)+' × 25% = '+fmt(E.vK):'')+fxTxt(E.fx)+' → repasse da empresa '+fmt(E.tot)+', dividido por '+E.n+': <b>'+ms.map(m=>m.nome.split(' ')[0]+' '+fmt(m.valor)).join(' · ')+'</b>. Vales descontados de cada um.</div>':''))
     +K.SEC(2,'Conferência por placa e OS · '+oss.length+' OS'+(juntas?' ('+juntas+' feita(s) pelos dois)':''))
     +(E&&E.osDupla?tabelaOsDupla(E.osDupla,K,null):
       ('<table class="sm"><thead><tr><th>Data</th><th>OS</th><th>Placa</th><th>Veículo</th><th>Quem</th><th class="n">MO régua</th><th class="n">MO KIA</th><th class="c">Chk</th><th class="c">Cko</th><th>Obs</th></tr></thead><tbody>'

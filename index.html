@@ -1516,7 +1516,7 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 <!-- ── RH · PESSOAS (só gestor; dados protegidos por RLS no banco) ── -->
 <div id="pg-rh" class="page">
     <div class="ph"><div><div class="ptitle">RH — Gestão de Pessoas</div><div class="psub">funcionários, vales e adiantamentos, férias, folgas, 13º, comissões e notas fiscais · acesso restrito</div></div></div>
-    <iframe id="rh-frame" data-src="rh.html?v=20261021b" title="Módulo RH" style="width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
+    <iframe id="rh-frame" data-src="rh.html?v=20261103" title="Módulo RH" style="width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
 </div>
 
 <!-- ── FERRAMENTAS · ORÇAMENTO ── -->
@@ -2084,6 +2084,36 @@ async function importarServicos(){
         var mesCount={}; regs.forEach(function(r){ if(r.data){ var ym=String(r.data).slice(0,7); mesCount[ym]=(mesCount[ym]||0)+1; } });
         var best=0, detectado=''; for(var ym in mesCount){ if(mesCount[ym]>best){ best=mesCount[ym]; detectado=ym; } }
         regs.forEach(function(r){ r.competencia=comp; });
+        // ── TRAVA (03/11/2026): impede gravar o relatório na competência errada ──
+        var fmtM=function(m){ var n=new Date(m+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}); return n.charAt(0).toUpperCase()+n.slice(1); };
+        var bloq=function(msg){ st.innerHTML='<div style="background:#fff1f0;border:1px solid #dc2626;color:#a30f0f;border-radius:10px;padding:13px 15px;margin-bottom:12px"><b>⛔ Importação bloqueada</b><br>'+msg.replace(/\n/g,'<br>')+'</div>'; alert('⛔ IMPORTAÇÃO BLOQUEADA\n\n'+msg); fileEl.value=''; };
+        var agora=new Date(), compHoje=agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0');
+        if(comp>compHoje){ bloq('Você escolheu '+fmtM(comp)+', que é um mês futuro.\nEscolha a competência certa e importe de novo.'); return; }
+        // O.S. que já estão gravadas no mês anterior: relatório de um mês só traz O.S. FECHADAS naquele mês,
+        // então se a maioria das O.S. da planilha já está no mês anterior, é o relatório do mês anterior de novo.
+        try{
+            var dAnt=new Date(+comp.slice(0,4),+comp.slice(5,7)-2,1), compAnt=dAnt.getFullYear()+'-'+String(dAnt.getMonth()+1).padStart(2,'0');
+            var ra=await supa.from('servicos_mecanicos').select('os').eq('competencia',compAnt).range(0,4999);
+            var osAnt={}; ((ra&&ra.data)||[]).forEach(function(x){ if(x.os) osAnt[x.os]=1; });
+            var osArq={}; regs.forEach(function(r){ if(r.os) osArq[r.os]=1; });
+            var lista=Object.keys(osArq), repet=lista.filter(function(o){return osAnt[o];}).length;
+            if(lista.length>=10 && repet/lista.length>=0.5){
+                bloq(repet+' das '+lista.length+' O.S. desta planilha já estão gravadas em '+fmtM(compAnt)+'.\nEste relatório é de '+fmtM(compAnt)+', não de '+fmtM(comp)+'.\nEscolha a competência certa e importe de novo.');
+                return;
+            }
+        }catch(e){ console.log('trava OS repetidas', e); }
+        try{
+            var somaNova=regs.reduce(function(a,r){return a+(+r.faturamento||0);},0);
+            var vizinhos=[-1,1].map(function(d){ var dt=new Date(+comp.slice(0,4),+comp.slice(5,7)-1+d,1); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); });
+            for(var vi=0;vi<vizinhos.length;vi++){
+                var rv=await supa.from('servicos_mecanicos').select('faturamento').eq('competencia',vizinhos[vi]).range(0,4999);
+                var dv=(rv&&rv.data)||[];
+                if(dv.length===regs.length && Math.abs(dv.reduce(function(a,x){return a+(+x.faturamento||0);},0)-somaNova)<0.01){
+                    bloq('Esta planilha é IGUAL à que já está gravada em '+fmtM(vizinhos[vi])+' ('+regs.length+' serviços, mesmo faturamento).\nProvavelmente é o relatório de '+fmtM(vizinhos[vi])+' importado de novo no mês errado.');
+                    return;
+                }
+            }
+        }catch(e){ console.log('trava duplicidade', e); }
         var nMec=Object.keys(mechs).length;
         var fmtMes=function(m){ var n=new Date(m+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}); return n.charAt(0).toUpperCase()+n.slice(1); };
         var mesNome=fmtMes(comp);
