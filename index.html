@@ -2559,10 +2559,17 @@ function setVal(id,v){ var el=document.getElementById(id); if(!el) return; el.va
 
 async function gerarPrint(){
     try{
+        // 04/11/2026: antes esperava 0,8 s fixo; se o banco demorasse, o print saía só com "Carregando...".
+        // Agora espera a corrida terminar de carregar de verdade antes de fotografar.
         go('resultados');
-        await new Promise(function(r){ setTimeout(r,800); });
+        toast('Montando a corrida para o print...');
+        await renderResultados();
         var el=document.getElementById('res-body');
+        for(var t=0; t<40 && el && /Carregando/i.test(el.textContent||'') ; t++){ await new Promise(function(r){ setTimeout(r,250); }); }
+        if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+        await new Promise(function(r){ setTimeout(r,300); });
         if(!el || typeof html2canvas==='undefined'){ toast('Não foi possível gerar o print.'); return; }
+        if(/Carregando/i.test(el.textContent||'')){ toast('A corrida não carregou. Confira a internet e tente de novo.'); return; }
         var canvas=await html2canvas(el,{backgroundColor:'#f0f4f8',scale:2});
         var a=document.createElement('a'); a.href=canvas.toDataURL('image/png');
         a.download='corrida_dias_'+(new Date()).toISOString().slice(0,10)+'.png'; a.click();
