@@ -418,6 +418,13 @@ async function ignorarLead(id){
      await patch(id,{etapa:'ignorado'},['ignorado','Marcado como ignorado']); LEADS=LEADS.filter(x=>x.id!==id); fecharFicha(); renderKanban(); const r=await supa.from('crm_ignorados').select('*').order('nome'); IGN=r.data||[]; return true; },'Ignorar');
 }
 
+function excluirLead(id){
+  const l=L(id); if(!l)return;
+  modal('Excluir lead',`<div class="box red">Vai apagar <b>${esc(l.nome||foneFmt(l.telefone)||'este lead')}</b> e todo o histórico dele. Não dá para desfazer.</div><div class="muted">Use só para teste ou cadastro errado. Lead real que não fechou deve ser marcado como <b>Perdido</b>, para entrar no relatório.</div>`,
+   async()=>{ const {data,error}=await supa.from('crm_leads').delete().eq('id',id).select('id');
+     if(error||!data||!data.length){toast('Não foi possível excluir'+(error?': '+error.message:''));return false;}
+     LEADS=LEADS.filter(x=>x.id!==id); fecharFicha(); renderKanban(); toast('Lead excluído'); },'Excluir de vez');
+}
 /* ═══ MODAIS ═══ */
 let _modOk=null;
 function modal(titulo,corpo,ok,okTxt){ $('mbox').innerHTML=`<div class="mh">${titulo}</div><div class="mb">${corpo}</div><div class="mf"><button class="btn bs" onclick="fecharMod()">Cancelar</button>${ok?`<button class="btn bp" id="mod-ok">${okTxt||'Salvar'}</button>`:''}</div>`; _modOk=ok; $('mod').classList.add('on'); if(ok)$('mod-ok').onclick=async()=>{ $('mod-ok').disabled=true; const r=await ok(); if(r!==false)fecharMod(); else $('mod-ok').disabled=false; }; }
@@ -545,7 +552,7 @@ async function abrirFicha(id,refresh){
      </div><div style="margin-top:10px"><button class="btn bp bsm" onclick="salvarDados(${id})">Salvar dados</button></div></div>
      <div class="sec"><h4>De onde veio</h4><div class="muted">${c?`${c.canal==='google'?'Google Ads':c.canal==='meta'?'Meta Ads':'Outro'} · ${esc(c.nome)} · código ${esc(c.codigo)}`:esc({base:'Cliente da base',triagem:'Sem código (triagem)',manual:'Cadastro manual',nutricao:'Reativado da Nutrição/Perdidos',campanha:'Campanha'}[l.origem]||l.origem)} · criado ${dt(l.criado_em)} por ${esc(nomeUser(l.criado_por))}</div></div>
      <div class="sec"><h4>Histórico</h4><div class="hist" id="f-hist"><span class="muted">Carregando...</span></div></div>
-     <div class="row"><button class="btn bs bsm" onclick="ignorarLead(${id})">Não é lead (ignorar número)</button></div>
+     <div class="row"><button class="btn bs bsm" onclick="ignorarLead(${id})">Não é lead (ignorar número)</button>${EH_GESTOR?`<button class="btn bs bsm" style="color:#cc0000;border-color:#f3c2ca" onclick="excluirLead(${id})">Excluir lead</button>`:''}</div>
    </div>`;
   if(!refresh){$('ov').classList.add('on');d.classList.add('on');d.scrollTop=0;}
   const {data}=await supa.from('crm_eventos').select('*').eq('lead_id',id).order('criado_em',{ascending:false}).limit(50);
