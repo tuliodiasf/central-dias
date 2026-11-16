@@ -2841,9 +2841,10 @@ async function renderResultados(){
           +'<div class="met" style="grid-column:1/-1;text-align:center"><div class="mlbl">Avaliações Google</div><div class="mval" style="font-size:18px">'+fmtNum(real(esc,'google'))+'</div><div class="msub">'+(meta(esc,'google')>0?('meta '+fmtNum(meta(esc,'google'))+' · '+pctTxt(real(esc,'google'),meta(esc,'google'))):'avaliações no mês')+'</div></div>'
           +'</div></div>'; }
     var vl=[['Matheus','mateus'],['Caio','caio']];
-    if(meta('raphael','faturamento')>0 || real('raphael','faturamento')>0) vl.push(['Raphael','raphael']); // Raphael entra a partir de out/2026
+    if(meta('raphael','faturamento')>0) vl.push(['Raphael','raphael']); // Raphael entra a partir de out/2026; sem meta = fora da corrida (16/11/2026)
+    var foraRaphael=(meta('raphael','faturamento')<=0 && real('raphael','faturamento')>0)?'<div style="margin-top:10px;padding:10px 14px;border-radius:10px;background:#fff4e5;border:1px solid #f5c26b;font-size:13px;color:#7a4b00"><b>Observação:</b> o Raphael está fora da corrida (desligado em nov/2026). O faturamento dele até a saída, '+fmtBRL(real('raphael','faturamento'))+', continua contando na meta da oficina, e a meta que ele não fez foi dividida entre Caio e Matheus.</div>':'';
     vl.sort(function(a,b){return real(b[1],'faturamento')-real(a[1],'faturamento');});
-    var disputa='<div class="ctitle">A disputa · corrida aberta</div><div class="'+(vl.length>2?'grid3':'grid2')+'">'+vl.map(function(x,i){ return vend(x[0],x[1],i+1); }).join('')+'</div>';
+    var disputa='<div class="ctitle">A disputa · corrida aberta</div><div class="'+(vl.length>2?'grid3':'grid2')+'">'+vl.map(function(x,i){ return vend(x[0],x[1],i+1); }).join('')+'</div>'+foraRaphael;
 
     var sF=real('samile','agendamento_fat'),sFM=meta('samile','agendamento_fat');
     var sO=real('samile','agendamento_os'),sOM=meta('samile','agendamento_os'); var sRt=rtDe('samile'); var sOn=pace(sFM>0?sF/sFM*100:0,sRt);
@@ -2956,14 +2957,15 @@ async function renderComissoes(){
     var ehGestor = (typeof GESTORES!=='undefined') && usuarioLogado && GESTORES.includes((usuarioLogado.email||'').toLowerCase());
     var pri = (usuarioLogado && usuarioLogado.nome) ? usuarioLogado.nome.split(' ')[0].toUpperCase() : '';
     var cards;
-    var temRaphael = meta('raphael','faturamento')>0 || real('raphael','faturamento')>0;
+    var temRaphael = meta('raphael','faturamento')>0; // sem meta = fora da corrida (16/11/2026)
+    var notaRaphael = (!temRaphael && real('raphael','faturamento')>0)?'<div class="ind-aviso"><b>Observação:</b> o Raphael está fora da corrida (desligado em nov/2026). A meta que ele não fez foi dividida entre Caio e Matheus.</div>':'';
     if(ehGestor){ cards=cardVend('Matheus','mateus',1785)+cardVend('Caio','caio',2000)+(temRaphael?cardVend('Raphael','raphael',1700):'')+cardSamile(); }
     else if(pri.indexOf('CAIO')>=0){ cards=cardVend('Caio','caio',2000); }
     else if(pri.indexOf('RAPHAEL')>=0){ cards=cardVend('Raphael','raphael',1700); }
     else if(pri.indexOf('MATHEUS')>=0){ cards=cardVend('Matheus','mateus',1785); }
     else if(pri.indexOf('SAMIL')>=0){ cards=cardSamile(); }
     else { cards='<div class="empty"><p>Seu indicador aparece aqui quando seu usuário estiver vinculado a um vendedor.</p></div>'; }
-    if(body) body.innerHTML='<div class="ind-wrap">'+aviso+colBoxes+cards+'</div>';
+    if(body) body.innerHTML='<div class="ind-wrap">'+aviso+(ehGestor?notaRaphael:'')+colBoxes+cards+'</div>';
 }
 
 function toggleTopic(el, id){
