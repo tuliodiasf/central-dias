@@ -609,7 +609,7 @@ function periodo(){
 function renderPainel(){
   const [ini,fim]=periodo(), canal=$('pn-canal').value;
   const iso=d=>d.toISOString().slice(0,10);
-  const campOk=c=>!canal||c.canal===canal;
+  const campOk=c=>c.canal!=='outro'&&(!canal||c.canal===canal);
   const camps=CAMPS.filter(campOk);
   const inP=d=>d&&new Date(d)>=ini&&new Date(d)<fim;
   const leadsP=LEADS.filter(l=>l.origem==='campanha'&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&inP(l.criado_em));
