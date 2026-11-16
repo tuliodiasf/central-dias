@@ -731,6 +731,10 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
                 Revisão Preço Fixo
             </div>
         </div>
+        <div class="ni" id="ni-crm" onclick="go('crm')" style="padding:11px 18px;font-weight:600;display:none">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z"/></svg>
+            CRM Dias
+        </div>
         <div class="ni gestor-only" id="ni-rh" onclick="go('rh')" style="padding:11px 18px;font-weight:600">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M13 7a4 4 0 11-8 0 4 4 0 018 0zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             RH — Gestão de Pessoas
@@ -1513,6 +1517,11 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
     <iframe src="gerador_revisao_dias.html?v=20260902" title="Revisão Preço Fixo" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
 </div>
 
+<!-- ── CRM DIAS · leads de tráfego (gestores + Samille; dados protegidos por RLS is_crm) ── -->
+<div id="pg-crm" class="page">
+    <iframe id="crm-frame" data-src="crm.html?v=20261116" title="CRM Dias" style="width:100%;height:calc(100vh - 60px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#f0f4f8"></iframe>
+</div>
+
 <!-- ── RH · PESSOAS (só gestor; dados protegidos por RLS no banco) ── -->
 <div id="pg-rh" class="page">
     <div class="ph"><div><div class="ptitle">RH — Gestão de Pessoas</div><div class="psub">funcionários, vales e adiantamentos, férias, folgas, 13º, comissões e notas fiscais · acesso restrito</div></div></div>
@@ -2242,6 +2251,8 @@ supa.auth.onAuthStateChange(async (event, session) => {
 const GESTORES = ['tulio@diascentroautomotivo.com.br','tulio.diasf@gmail.com','joseneto@diascentroautomotivo.com.br','oficina@diascentroautomotivo.com.br','keyla@diascentroautomotivo.com.br'];
 // Acesso ao módulo RH sem ser gestor geral (Marina lança vales e anexa NF) — manter alinhado com public.is_rh() no banco
 const RH_EXTRAS = ['fiscal@diascentroautomotivo.com.br'];
+// Acesso ao CRM Dias sem ser gestor (Samille) — manter alinhado com public.is_crm() no banco
+const CRM_EXTRAS = ['contato@diascentroautomotivo.com.br','samille@diascentroautomotivo.com.br'];
 // exclusão permanente: só o Tulio. Os demais usam "Inativar" com justificativa.
 const ADMIN_EXCLUIR = ['tulio@diascentroautomotivo.com.br','tulio.diasf@gmail.com'];
 const ehAdmin = () => ADMIN_EXCLUIR.includes((usuarioLogado?.email||'').toLowerCase());
@@ -2255,12 +2266,16 @@ function aplicarPapel(email) {
     const ehRH = ehGestor || RH_EXTRAS.includes((email||'').toLowerCase());
     const niRh = document.getElementById('ni-rh');
     if (niRh) niRh.style.display = ehRH ? 'flex' : 'none';
+    const ehCRM = ehGestor || CRM_EXTRAS.includes((email||'').toLowerCase());
+    const niCrm = document.getElementById('ni-crm');
+    if (niCrm) niCrm.style.display = ehCRM ? 'flex' : 'none';
     const hcRh = document.getElementById('hcard-rh');
     if (hcRh) hcRh.style.display = ehRH ? 'flex' : 'none';
     if (!ehGestor) {
         const atual = document.querySelector('.page.active')?.id;
         if (atual === 'pg-metas' || atual === 'pg-config' || atual === 'pg-servicos-cfg') go('home');
         if (atual === 'pg-rh' && !ehRH) go('home');
+        if (atual === 'pg-crm' && !ehCRM) go('home');
     }
     // Abertura de mês: exclusiva do Tulio (a trava de verdade está na RLS do banco)
     if (!adm && document.querySelector('.page.active')?.id === 'pg-metas') go('home');
@@ -3005,6 +3020,10 @@ function go(pg) {
     if (pg==='servicos-cfg') { svcRenderCfg(); }
     if (pg==='placar')       { plcRender(); }
     if (pg==='chkos')        { ckoRender(); }
+    if (pg==='crm') { // CRM Dias em iframe, carrega na 1ª abertura (sessão já está no localStorage)
+        var _cf=document.getElementById('crm-frame');
+        if(_cf&&!_cf.getAttribute('src')) _cf.setAttribute('src',_cf.getAttribute('data-src'));
+    }
     if (pg==='rh') { // iframe do RH só carrega depois do login, na 1ª abertura (sessão já existe no localStorage)
         var _rf=document.getElementById('rh-frame');
         if(_rf&&!_rf.getAttribute('src')) _rf.setAttribute('src',_rf.getAttribute('data-src'));
