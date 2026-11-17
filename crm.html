@@ -42,6 +42,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .met .l{font-size:12px;color:var(--gray);font-weight:600}.met .v{font-size:24px;font-weight:800;margin:4px 0}.met .s{font-size:11.5px;color:var(--gray)}
 .met.dark{background:var(--primary);color:#fff;border-color:var(--primary)}.met.dark .l,.met.dark .s{color:#c9cdd4}
 .met.red{background:var(--accent);color:#fff;border-color:var(--accent)}.met.red .l,.met.red .s{color:#fde2e2}
+.fups{margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:13px}.fups>div{padding:6px 10px;background:#f8fafc;border-radius:6px}
 .osk{margin-top:8px;padding:8px 10px;border-radius:8px;background:#ecfdf3;color:#065f46;font-size:12.5px;cursor:pointer;border:1px solid #a7f3d0}.osk.div{background:#fef2f2;color:#991b1b;border-color:#fecaca}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .b-google{background:var(--google-bg);color:var(--google)}.b-meta{background:var(--meta-bg);color:var(--meta)}
@@ -422,6 +423,12 @@ async function fupFeito(id){
   const i=LEADS.findIndex(l=>l.id===id); if(i>=0)LEADS[i]=data;
   toast('Follow up '+data.fup_n+' registrado'); renderKanban(); if(fichaId===id)abrirFicha(id,true);
 }
+function fupDesfazer(id){
+  const l=L(id); if(!l)return;
+  modal('Desfazer follow up',`<div>Vai desfazer o <b>follow up ${l.fup_n}</b> de <b>${esc(l.nome||foneFmt(l.telefone))}</b>. A régua volta um passo e o registro fica no histórico como desfeito.</div>`,
+   async()=>{ const {data,error}=await supa.rpc('crm_fup_desfazer',{p_lead:id}); if(error){toast('Erro: '+error.message);return false;}
+     const i=LEADS.findIndex(x=>x.id===id); if(i>=0)LEADS[i]=data; renderKanban(); if(fichaId===id)abrirFicha(id,true); toast('Follow up desfeito'); },'Desfazer');
+}
 async function respondeu(id){
   await patch(id,{ultima_msg_cliente:new Date().toISOString()},['cliente','Cliente respondeu: régua zerada']);
   toast('Régua zerada. Quando você responder, ela volta a contar.');
@@ -544,7 +551,8 @@ async function abrirFicha(id,refresh){
   let regua='';
   if(['atendimento','orcamento'].includes(l.etapa)){
     regua=`<div class="sec"><h4>Régua de follow up</h4><div class="row" style="justify-content:space-between"><span>${dotsH(l.fup_n,max)} <b>FUP ${Math.min(l.fup_n,max)}/${max}</b></span><span class="muted">${l.fup_proximo?'próximo: '+quando(l.fup_proximo):(l.fup_base?'':'aguardando sua resposta ao cliente')}</span></div>
-    <div class="row" style="margin-top:8px"><button class="btn bk bsm" onclick="fupFeito(${id})">Follow up feito</button><button class="btn bs bsm" onclick="respondeu(${id})">Cliente respondeu</button>${!l.fup_base?`<button class="btn bs bsm" onclick="respondi(${id})">Já respondi</button>`:''}</div></div>`;
+    <div class="row" style="margin-top:8px"><button class="btn bk bsm" onclick="fupFeito(${id})">Follow up feito</button><button class="btn bs bsm" onclick="respondeu(${id})">Cliente respondeu</button>${!l.fup_base?`<button class="btn bs bsm" onclick="respondi(${id})">Já respondi</button>`:''}${l.fup_n>0?`<button class="btn bs bsm" style="color:#9a3412;border-color:#fed7aa" onclick="fupDesfazer(${id})">Desfazer último</button>`:''}</div>
+    <div id="f-fups" class="fups"></div></div>`;
   }
   const d=$('drawer');
   d.innerHTML=`<div class="dh"><div><div style="font-size:19px;font-weight:800">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</div>
@@ -579,6 +587,9 @@ async function abrirFicha(id,refresh){
    </div>`;
   if(!refresh){$('ov').classList.add('on');d.classList.add('on');d.scrollTop=0;}
   const {data}=await supa.from('crm_eventos').select('*').eq('lead_id',id).order('criado_em',{ascending:false}).limit(50);
+  if(fichaId===id&&$('f-fups')){const fs=(data||[]).filter(e=>e.tipo==='fup').reverse();
+    const nAtual=Math.min(l.fup_n,fs.length), ant=l.fup_n-nAtual, cur=nAtual?fs.slice(fs.length-nAtual):[];
+    $('f-fups').innerHTML=(ant?`<div class="muted">FUP 1${ant>1?' a '+ant:''}: feito${ant>1?'s':''} antes do CRM (Expad), sem data registrada</div>`:'')+cur.map((e,k)=>`<div><b>FUP ${ant+k+1}</b> <span>${dt(e.criado_em)}</span> <span class="muted">· ${esc(e.autor==='whatsapp'?'pelo WhatsApp':nomeUser(e.autor))}</span></div>`).join('');}
   if(fichaId===id&&$('f-hist'))$('f-hist').innerHTML=(data||[]).map(e=>`<div><b>${dt(e.criado_em)}</b><span>${esc(e.detalhe||e.tipo)} <span class="muted">· ${esc(nomeUser(e.autor))}</span></span></div>`).join('')||'<span class="muted">Sem histórico</span>';
 }
 function fecharFicha(){fichaId=null;$('ov').classList.remove('on');$('drawer').classList.remove('on');}
