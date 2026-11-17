@@ -42,6 +42,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .met .l{font-size:12px;color:var(--gray);font-weight:600}.met .v{font-size:24px;font-weight:800;margin:4px 0}.met .s{font-size:11.5px;color:var(--gray)}
 .met.dark{background:var(--primary);color:#fff;border-color:var(--primary)}.met.dark .l,.met.dark .s{color:#c9cdd4}
 .met.red{background:var(--accent);color:#fff;border-color:var(--accent)}.met.red .l,.met.red .s{color:#fde2e2}
+.osk{margin-top:8px;padding:8px 10px;border-radius:8px;background:#ecfdf3;color:#065f46;font-size:12.5px;cursor:pointer;border:1px solid #a7f3d0}.osk.div{background:#fef2f2;color:#991b1b;border-color:#fecaca}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .b-google{background:var(--google-bg);color:var(--google)}.b-meta{background:var(--meta-bg);color:var(--meta)}
 .b-gray{background:var(--gray-bg);color:#334155}.b-tri{background:var(--yellow-bg);color:#6b4a00}
@@ -229,7 +230,7 @@ function quando(d){
   const df=Math.round((dx-d0)/864e5);
   if(df===0)return'Hoje '+hh; if(df===1)return'Amanhã '+hh; if(df===-1)return'Ontem '+hh;
   const sem=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][x.getDay()];
-  return sem+' '+x.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' · '+hh;
+  return sem+' '+x.toLocaleDateString('pt-BR',x.getFullYear()===n.getFullYear()?{day:'2-digit',month:'2-digit'}:{day:'2-digit',month:'2-digit',year:'numeric'})+' · '+hh;
 }
 function ha(d){if(!d)return'';const m=Math.round((Date.now()-new Date(d))/6e4);if(m<1)return'agora';if(m<60)return m+' min';const h=Math.round(m/60);if(h<48)return h+' h';return Math.round(h/24)+' dias';}
 function campBadge(l){
@@ -341,6 +342,7 @@ function renderKanbanHoje(){
 function cardH(l){
   let top='';
   if(l.etapa==='agendado'&&l.agendado_para){top=`<div class="agenda ${noShow(l)?'noshow':''}">${esc(quando(l.agendado_para))}${noShow(l)?' · Não compareceu?':''}</div>`;}
+  else if(l.etapa==='agendado'){top=`<div class="agenda" style="background:#9ca3af">Sem data: confirmar</div>`;}
   let meio='';
   if(['atendimento','orcamento'].includes(l.etapa)&&l.fup_base){
     const late=l.fup_proximo&&new Date(l.fup_proximo)<new Date();
@@ -358,14 +360,15 @@ function cardH(l){
     ${l.ia_resumo?'<div class="badge b-purple" style="margin-top:6px">Pré-atendido pela IA</div>':''}
     ${l.cliente_info&&!['ganho','perdido'].includes(l.etapa)?`<div class="badge ${l.cliente_info.startsWith('Já comprou')?'b-green':'b-gray'}" style="margin-top:6px" title="${esc(l.cliente_info)}">${l.cliente_info.startsWith('Já comprou')?'Já comprou com a gente':'Cliente da base'}</div>`:''}
     ${l.etapa==='triagem'?`<div class="row" style="margin-top:8px"><button class="btn bk bsm" style="flex:1" onclick="event.stopPropagation();moverEtapa(${l.id},'novo')">É lead</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();ignorarLead(${l.id})">Ignorar</button></div>`:''}
-    ${l.etapa==='agendado'?`<div class="row" style="margin-top:8px"><button class="btn bg bsm" style="flex:1" onclick="event.stopPropagation();modalOS(${l.id})">Chegou: lançar OS</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();modalAgendar(${l.id})">Remarcar</button></div>`:''}
+    ${l.etapa==='agendado'?(l.os_numero?`<div class="osk ${l.os_status==='divergente'?'div':''}" onclick="event.stopPropagation();modalOS(${l.id})" title="Clique para trocar a OS"><b>OS ${esc(String(l.os_numero))}</b> · ${esc(OS_ST[l.os_status]||'lançada')}</div>`:`<div class="row" style="margin-top:8px"><button class="btn bg bsm" style="flex:1" onclick="event.stopPropagation();modalOS(${l.id})">Chegou: lançar OS</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();modalAgendar(${l.id})">Remarcar</button></div>`):''}
   </div>`;
 }
+const OS_ST={pendente:'robô confere após o faturamento',aguardando:'OS aberta, aguardando faturamento',divergente:'nome e telefone não batem: conferir',sugerido:'possível ganho: confirmar',confirmado:'confirmada'};
 function renderBoard(){
   const ls=LEADS.filter(filtroBusca);
   $('board').innerHTML=ETAPAS.map(([k,lbl])=>{
     let cs=ls.filter(l=>l.etapa===k);
-    if(k==='agendado')cs.sort((a,b)=>new Date(a.agendado_para||0)-new Date(b.agendado_para||0));
+    if(k==='agendado')cs.sort((a,b)=>new Date(a.agendado_para||'2999-01-01')-new Date(b.agendado_para||'2999-01-01')); // mais perto em cima, sem data no fim
     else if(k==='atendimento'||k==='orcamento')cs.sort((a,b)=>new Date(a.fup_proximo||'2999-01-01')-new Date(b.fup_proximo||'2999-01-01'));
     return `<section class="col ${k==='triagem'?'tri':''}" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropI(event,'${k}');this.classList.remove('over')">
       <div class="colh"><span>${lbl}</span><span class="n">${cs.length}</span></div>
