@@ -554,7 +554,7 @@ async function abrirFicha(id,refresh){
        <div class="fi"><label>Interesse (Nutrição)</label><input id="f-int" value="${esc(l.interesse||'')}" placeholder="Ex.: Câmbio automático"></div>
        <div class="fi full"><label>Observações</label><textarea id="f-obs">${esc(l.obs||'')}</textarea></div>
      </div><div style="margin-top:10px"><button class="btn bp bsm" onclick="salvarDados(${id})">Salvar dados</button></div></div>
-     <div class="sec"><h4>De onde veio</h4><div class="muted">${c?`${c.canal==='google'?'Google Ads':c.canal==='meta'?'Meta Ads':'Outro'} · ${esc(c.nome)} · código ${esc(c.codigo)}`:esc({base:'Cliente da base',triagem:'Sem código (triagem)',manual:'Cadastro manual',nutricao:'Reativado da Nutrição/Perdidos',campanha:'Campanha'}[l.origem]||l.origem)} · criado ${dt(l.criado_em)} por ${esc(nomeUser(l.criado_por))}</div></div>
+     <div class="sec"><h4>De onde veio</h4><div class="muted">${c?`${c.canal==='google'?'Google Ads':c.canal==='meta'?'Meta Ads':'Outro'} · ${esc(c.nome)} · código ${esc(c.codigo)}`:esc({base:'Cliente da base',triagem:'Sem código (triagem)',manual:'Cadastro manual',nutricao:'Reativado da Nutrição/Perdidos',campanha:'Campanha',expad:'Importado do Expad'}[l.origem]||l.origem)} · criado ${dt(l.criado_em)} por ${esc(nomeUser(l.criado_por))}</div></div>
      <div class="sec"><h4>Histórico</h4><div class="hist" id="f-hist"><span class="muted">Carregando...</span></div></div>
      <div class="row"><button class="btn bs bsm" onclick="ignorarLead(${id})">Não é lead (ignorar número)</button>${EH_GESTOR?`<button class="btn bs bsm" style="color:#cc0000;border-color:#f3c2ca" onclick="excluirLead(${id})">Excluir lead</button>`:''}</div>
    </div>`;
