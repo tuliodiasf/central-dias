@@ -130,6 +130,7 @@ code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;
     <div class="ph">
       <div><div class="ptitle">Kanban</div><div class="psub">leads de tráfego e contatos novos · régua de follow up automática</div></div>
       <div class="row">
+        <div class="pills" id="kt-pills" style="margin:0"></div>
         <input id="busca" placeholder="Buscar nome, telefone ou placa" oninput="renderKanban()" style="border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;min-width:230px;min-height:40px">
         <button class="btn bk" onclick="abrirNovo()">+ Novo lead</button>
       </div>
@@ -299,7 +300,11 @@ function verK(v){
 }
 
 /* ═══ KANBAN ═══ */
+let KT='todos';
+function setKT(v){KT=v;renderKanban();}
+function filtroTipo(l){return KT==='todos'||(KT==='recorrentes'?!!l.recorrente:!l.recorrente);}
 function filtroBusca(l){
+  if(!filtroTipo(l))return false;
   const q=($('busca').value||'').trim().toLowerCase(); if(!q)return true;
   const qd=q.replace(/\D/g,'');
   return (l.nome||'').toLowerCase().includes(q)||(l.placa||'').toLowerCase().includes(q.replace(/[^a-z0-9]/g,''))||(qd.length>=4&&(l.telefone||'').includes(qd))||(l.carro||'').toLowerCase().includes(q);
@@ -307,6 +312,8 @@ function filtroBusca(l){
 function noShow(l){return l.etapa==='agendado'&&l.agendado_para&&new Date(l.agendado_para)<new Date(Date.now()-60*60*1000)&&!l.os_numero;}
 function semResposta(l){return l.etapa==='novo'&&!l.ultima_msg_nossa;}
 function renderKanban(){
+  const nR=LEADS.filter(l=>l.recorrente&&!['ganho','perdido','nutricao','ignorado'].includes(l.etapa)).length, nT=LEADS.filter(l=>!l.recorrente&&!['ganho','perdido','nutricao','ignorado'].includes(l.etapa)).length;
+  $('kt-pills').innerHTML=[['todos','Todos',nR+nT],['trafego','Tráfego',nT],['recorrentes','Recorrentes',nR]].map(([k,lb,n])=>`<button class="pill ${KT===k?'on':''}" onclick="setKT('${k}')">${lb} ${n}</button>`).join('');
   $('c-ganhos').textContent=LEADS.filter(l=>l.etapa==='ganho').length;
   $('c-perdidos').textContent=LEADS.filter(l=>l.etapa==='perdido').length;
   $('c-nutri').textContent=LEADS.filter(l=>l.etapa==='nutricao').length;
@@ -353,13 +360,13 @@ function cardH(l){
   const late=(semResposta(l)&&(Date.now()-new Date(l.criado_em))/6e4>Number(CFG.alerta_sem_resposta_min||15))||noShow(l)||(l.fup_proximo&&new Date(l.fup_proximo)<new Date());
   const linha=[l.carro,l.servico].filter(Boolean).join(' · ');
   return `<div class="kc ${late?'late':''}" draggable="true" ondragstart="dragI(event,${l.id})" onclick="abrirFicha(${l.id})">
-    ${top}<div class="t"><span class="nm">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</span>${campBadge(l)}</div>
+    ${top}<div class="t"><span class="nm">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</span>${l.recorrente?'<span class="badge b-blue">Recorrente</span>':campBadge(l)}</div>
     ${linha?`<div class="ln">${esc(linha)}</div>`:''}
     ${l.valor_orcamento?`<div class="ln"><b>${brl(l.valor_orcamento)}</b></div>`:''}
     ${meio}${pe}
     ${l.ia_resumo?'<div class="badge b-purple" style="margin-top:6px">Pré-atendido pela IA</div>':''}
-    ${l.cliente_info&&!['ganho','perdido'].includes(l.etapa)?`<div class="badge ${l.cliente_info.startsWith('Já comprou')?'b-green':'b-gray'}" style="margin-top:6px" title="${esc(l.cliente_info)}">${l.cliente_info.startsWith('Já comprou')?'Já comprou com a gente':'Cliente da base'}</div>`:''}
-    ${l.etapa==='triagem'?`<div class="row" style="margin-top:8px"><button class="btn bk bsm" style="flex:1" onclick="event.stopPropagation();moverEtapa(${l.id},'novo')">É lead</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();ignorarLead(${l.id})">Ignorar</button></div>`:''}
+    ${l.cliente_info&&!l.recorrente&&!['ganho','perdido'].includes(l.etapa)?`<div class="badge ${l.cliente_info.startsWith('Já comprou')?'b-green':'b-gray'}" style="margin-top:6px" title="${esc(l.cliente_info)}">${l.cliente_info.startsWith('Já comprou')?'Já comprou com a gente':'Cliente da base'}</div>`:''}
+    ${l.etapa==='triagem'?`<div class="row" style="margin-top:8px"><button class="btn bk bsm" style="flex:1" onclick="event.stopPropagation();moverEtapa(${l.id},'novo')">É lead</button><button class="btn bs bsm" style="flex:1;border-color:#93c5fd;color:#1e3a8a" onclick="event.stopPropagation();marcarRecorrente(${l.id},true)">Recorrente</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();ignorarLead(${l.id})">Ignorar</button></div>`:''}
     ${l.etapa==='agendado'?(l.os_numero?`<div class="osk ${l.os_status==='divergente'?'div':''}" onclick="event.stopPropagation();modalOS(${l.id})" title="Clique para trocar a OS"><b>OS ${esc(String(l.os_numero))}</b> · ${esc(OS_ST[l.os_status]||'lançada')}</div>`:`<div class="row" style="margin-top:8px"><button class="btn bg bsm" style="flex:1" onclick="event.stopPropagation();modalOS(${l.id})">Chegou: lançar OS</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();modalAgendar(${l.id})">Remarcar</button></div>`):''}
   </div>`;
 }
@@ -384,6 +391,13 @@ function dropI(e,etapa){e.preventDefault();if(_drag)moverEtapa(_drag,etapa);_dra
 /* ═══ AÇÕES ═══ */
 function L(id){return LEADS.find(l=>l.id===id);}
 async function evento(id,tipo,detalhe){await supa.from('crm_eventos').insert({lead_id:id,tipo,detalhe});}
+async function marcarRecorrente(id,v){
+  const l=L(id); if(!l)return;
+  const p={recorrente:v};
+  if(v){ if(['triagem'].includes(l.etapa))p.etapa='novo'; if(l.origem==='triagem'||l.origem==='manual')p.origem='base'; }
+  await patch(id,p,['recorrente',v?'Marcado como cliente recorrente (fora da régua e do tráfego)':'Desmarcado como recorrente']);
+  renderKanban(); if(fichaId===id)abrirFicha(id,true); toast(v?'Marcado como recorrente':'Voltou para tráfego');
+}
 async function patch(id,p,ev){
   const {data,error}=await supa.from('crm_leads').update(p).eq('id',id).select().single();
   if(error){toast('Erro ao salvar: '+error.message);return null;}
@@ -481,6 +495,7 @@ function abrirNovo(){
     <div class="fi"><label>Serviço</label><input id="nl-s" placeholder="Ex.: Óleo do câmbio"></div>
     <div class="fi"><label>Carro</label><input id="nl-car" placeholder="Ex.: Tiguan 2019"></div>
     <div class="fi"><label>Placa</label><input id="nl-p"></div>
+    <label class="fi full" style="flex-direction:row;align-items:center;gap:8px;display:flex;cursor:pointer"><input type="checkbox" id="nl-r" style="width:18px;height:18px"> <span><b>Cliente recorrente</b> <span class="muted">(já é cliente e chamou para agendar: fica fora da régua e das métricas de tráfego)</span></span></label>
   </div><div id="nl-info"></div>`, salvarNovo, 'Criar lead');
   setTimeout(()=>{const n=$('nl-n'); if(n)n.focus();},50);
 }
@@ -504,12 +519,13 @@ async function salvarNovo(){
   const f=$('nl-f').value, c=$('nl-c').value;
   if(fone(f).length<12&&!$('nl-n').value){toast('Informe ao menos telefone ou nome');return false;}
   if(_chk.ignorado){toast('Número ignorado. Tire dos ignorados em Configurações se for lead.');return false;}
-  const base=!!(_chk.cliente_base||_chk.cliente_crm)&&!c;
-  const row={nome:$('nl-n').value||null,telefone:f||null,carro:$('nl-car').value||null,placa:$('nl-p').value||null,servico:$('nl-s').value||null,
+  const rec=$('nl-r')&&$('nl-r').checked;
+  const base=(rec||!!(_chk.cliente_base||_chk.cliente_crm))&&!c;
+  const row={recorrente:!!rec&&!c,nome:$('nl-n').value||null,telefone:f||null,carro:$('nl-car').value||null,placa:$('nl-p').value||null,servico:$('nl-s').value||null,
     campanha:c||null,origem:c?'campanha':(base?'base':'triagem'),etapa:c||base?'novo':'triagem',obs:$('nl-m').value?('1ª mensagem: '+$('nl-m').value):null};
   const {data,error}=await supa.from('crm_leads').insert(row).select().single();
   if(error){toast('Erro: '+error.message);return false;}
-  await evento(data.id,'criado','Lead criado'+(c?' pela campanha '+c:base?' (cliente da base)':' na Triagem'));
+  await evento(data.id,'criado','Lead criado'+(c?' pela campanha '+c:rec?' (cliente recorrente)':base?' (cliente da base)':' na Triagem'));
   LEADS.unshift(data); _chk={}; renderKanban(); toast('Lead criado');
 }
 
@@ -533,7 +549,7 @@ async function abrirFicha(id,refresh){
   const d=$('drawer');
   d.innerHTML=`<div class="dh"><div><div style="font-size:19px;font-weight:800">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</div>
      <div class="muted" style="margin-top:3px">${esc(foneFmt(l.telefone))} ${l.carro?'· '+esc(l.carro):''} ${l.placa?'· '+esc(l.placa):''}</div>
-     <div class="row" style="margin-top:6px">${campBadge(l)} <span class="badge b-gray">${ETAPA_LBL[l.etapa]}</span> ${l.responsavel?'<span class="muted">Atendendo: <b>'+esc(nomeUser(l.responsavel))+'</b></span>':`<button class="btn bs bsm" onclick="patch(${id},{responsavel:U.email},['responsavel','Assumiu o atendimento'])">Assumir</button>`}</div></div>
+     <div class="row" style="margin-top:6px">${l.recorrente?'<span class="badge b-blue">Recorrente</span>':campBadge(l)} <span class="badge b-gray">${ETAPA_LBL[l.etapa]}</span> <button class="btn bs bsm" onclick="marcarRecorrente(${id},${!l.recorrente})">${l.recorrente?'Não é recorrente':'Marcar recorrente'}</button> ${l.responsavel?'<span class="muted">Atendendo: <b>'+esc(nomeUser(l.responsavel))+'</b></span>':`<button class="btn bs bsm" onclick="patch(${id},{responsavel:U.email},['responsavel','Assumiu o atendimento'])">Assumir</button>`}</div></div>
      <button class="btn bs bsm" onclick="fecharFicha()" aria-label="Fechar">✕</button></div>
    <div class="db">
      <div class="row">${l.telefone?`<a class="btn bg bsm" target="_blank" href="https://wa.me/${esc(l.telefone)}">Abrir no WhatsApp</a>`:''}<button class="btn bs bsm" onclick="try{parent.go('novo')}catch(e){toast('Abra Novo Orçamento no menu da Central')}">Fazer orçamento no hub</button></div>
@@ -626,8 +642,8 @@ function renderPainel(){
   const campOk=c=>c.canal!=='outro'&&(!canal||c.canal===canal);
   const camps=CAMPS.filter(campOk);
   const inP=d=>d&&new Date(d)>=ini&&new Date(d)<fim;
-  const leadsP=LEADS.filter(l=>l.origem==='campanha'&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&inP(l.criado_em));
-  const ganhosP=LEADS.filter(l=>l.campanha&&camps.some(c=>c.codigo===l.campanha)&&l.etapa==='ganho'&&inP(l.ganho_em));
+  const leadsP=LEADS.filter(l=>!l.recorrente&&l.origem==='campanha'&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&inP(l.criado_em));
+  const ganhosP=LEADS.filter(l=>!l.recorrente&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&l.etapa==='ganho'&&inP(l.ganho_em));
   const custoP=CUSTOS.filter(x=>(!canal||x.canal===canal)&&x.dia>=iso(ini)&&x.dia<iso(fim));
   const temCusto=CUSTOS.length>0;
   const gasto=custoP.reduce((s,x)=>s+Number(x.gasto||0),0);
@@ -639,6 +655,8 @@ function renderPainel(){
   const perd=LEADS.filter(l=>l.campanha&&camps.some(c=>c.codigo===l.campanha)&&inP(l.perdido_em)&&l.motivo_perda);
   const roas=gasto?fat/gasto:0;
   const fora=LEADS.filter(l=>inP(l.criado_em));
+  const recP=fora.filter(l=>l.recorrente), recG=LEADS.filter(l=>l.recorrente&&l.etapa==='ganho'&&inP(l.ganho_em)), recFat=recG.reduce((s,l)=>s+Number(l.os_valor||0),0);
+  const recAg=LEADS.filter(l=>l.recorrente&&l.agendado_para&&inP(l.agendado_para)), recCompareceu=recAg.filter(l=>l.etapa==='ganho'||l.os_numero).length;
   $('painel').innerHTML=`${temCusto?'':'<div class="alerta" style="background:#fff7eb;border-color:#f0d29a;color:#6b4a00">O custo do Google e do Meta ainda não está conectado. Leads, ganhos e faturamento já funcionam; investimento, CPL, CAC e ROAS aparecem quando a conexão for feita.</div>'}
   <div class="mets">
     <div class="met"><div class="l">Investido</div><div class="v">${temCusto?brl(gasto):'-'}</div><div class="s">Google + Meta</div></div>
@@ -655,9 +673,16 @@ function renderPainel(){
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
     <div class="card"><h3>Funil dos leads de tráfego</h3>${fun.map(f=>{const p=leadsP.length?Math.round(f[1]/leadsP.length*100):0;return `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between"><span>${f[0]}</span><b>${f[1]} <span class="muted">· ${p}%</span></b></div><div class="bar"><i style="width:${p}%;background:#111"></i></div></div>`;}).join('')}</div>
     <div class="card"><h3>Por que perdemos (${perd.length})</h3>${barras(contar(perd,l=>l.motivo_perda),'#cc0000')}</div>
+    <div class="card"><h3>Clientes recorrentes</h3><div class="muted" style="margin-bottom:10px">Clientes que já eram da casa e chamaram para agendar. Não entram no CPL.</div>
+      <div class="mets" style="grid-template-columns:repeat(2,1fr);margin:0">
+        <div class="met"><div class="l">Chamaram</div><div class="v">${recP.length}</div><div class="s">no período</div></div>
+        <div class="met"><div class="l">Agendados</div><div class="v">${recAg.length}</div><div class="s">comparecimento ${recAg.length?Math.round(recCompareceu/recAg.length*100)+'%':'-'}</div></div>
+        <div class="met"><div class="l">Faturamento</div><div class="v">${brl(recFat)}</div><div class="s">${recG.length} OS confirmadas</div></div>
+        <div class="met"><div class="l">Ticket médio</div><div class="v">${recG.length?brl(recFat/recG.length):'-'}</div><div class="s">por OS</div></div>
+      </div></div>
     <div class="card"><h3>Contatos que não contam no CPL</h3>
       <div class="row" style="justify-content:space-between;padding:10px 12px;background:#fff7eb;border-radius:10px;margin-bottom:8px"><span><b>Triagem</b><br><span class="muted">desconhecidos sem código</span></span><b style="font-size:22px">${fora.filter(l=>l.origem==='triagem').length}</b></div>
-      <div class="row" style="justify-content:space-between;padding:10px 12px;background:var(--gray-bg);border-radius:10px;margin-bottom:8px"><span><b>Clientes da base</b><br><span class="muted">já têm OS no Oficina Inteligente</span></span><b style="font-size:22px">${fora.filter(l=>l.origem==='base').length}</b></div>
+      <div class="row" style="justify-content:space-between;padding:10px 12px;background:var(--gray-bg);border-radius:10px;margin-bottom:8px"><span><b>Clientes da base</b><br><span class="muted">já têm OS no Oficina Inteligente</span></span><b style="font-size:22px">${fora.filter(l=>l.origem==='base'&&!l.recorrente).length}</b></div>
       <div class="row" style="justify-content:space-between;padding:10px 12px;background:var(--gray-bg);border-radius:10px"><span><b>Ignorados</b><br><span class="muted">fornecedores, equipe, parceiros</span></span><b style="font-size:22px">${IGN.length}</b></div>
     </div>
   </div>`;
@@ -703,8 +728,9 @@ function convParaLead(f){
   modal('Mandar pro Kanban',`<div class="muted">${esc(foneFmt(f))}. A conversa inteira vai junto para a ficha. Se o cliente mandou código de campanha, o CRM já identifica.</div>
    <div class="fi"><label>Nome do cliente</label><input id="cl-n" value="${esc((ant&&ant.nome)||'')}" placeholder="Ex.: Daniel"></div>
    <div class="fi"><label>Serviço</label><input id="cl-s" value="${esc((ant&&ant.servico)||'')}" placeholder="Ex.: Arrefecimento"></div>
+   <label style="display:flex;align-items:center;gap:8px;margin:10px 0;cursor:pointer"><input type="checkbox" id="cl-r" style="width:18px;height:18px"> <span><b>Cliente recorrente</b> <span class="muted">(já é cliente: fora da régua e do tráfego)</span></span></label>
    <div class="fi"><label>Campanha</label><select id="cl-c"><option value="">Detectar pela conversa</option>${CAMPS.map(x=>`<option value="${esc(x.codigo)}">${esc(x.codigo)} · ${esc(x.nome)}</option>`).join('')}</select></div>`,
-   async()=>{ const {data,error}=await supa.rpc('crm_lead_da_conversa',{p_fone:f,p_nome:$('cl-n').value,p_campanha:$('cl-c').value,p_servico:$('cl-s').value});
+   async()=>{ const {data,error}=await supa.rpc('crm_lead_da_conversa',{p_fone:f,p_nome:$('cl-n').value,p_campanha:$('cl-c').value,p_servico:$('cl-s').value,p_recorrente:$('cl-r').checked});
      if(error){toast('Erro: '+error.message);return false;}
      await carregarLeads(); renderKanban(); toast('Lead criado no Kanban'); renderConversas(); abrirFicha(data); },'Criar lead');
   setTimeout(()=>{const n=$('cl-n'); if(n)n.focus();},50);
