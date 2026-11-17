@@ -356,6 +356,7 @@ function cardH(l){
     ${l.valor_orcamento?`<div class="ln"><b>${brl(l.valor_orcamento)}</b></div>`:''}
     ${meio}${pe}
     ${l.ia_resumo?'<div class="badge b-purple" style="margin-top:6px">Pré-atendido pela IA</div>':''}
+    ${l.cliente_info&&!['ganho','perdido'].includes(l.etapa)?`<div class="badge ${l.cliente_info.startsWith('Já comprou')?'b-green':'b-gray'}" style="margin-top:6px" title="${esc(l.cliente_info)}">${l.cliente_info.startsWith('Já comprou')?'Já comprou com a gente':'Cliente da base'}</div>`:''}
     ${l.etapa==='triagem'?`<div class="row" style="margin-top:8px"><button class="btn bk bsm" style="flex:1" onclick="event.stopPropagation();moverEtapa(${l.id},'novo')">É lead</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();ignorarLead(${l.id})">Ignorar</button></div>`:''}
     ${l.etapa==='agendado'?`<div class="row" style="margin-top:8px"><button class="btn bg bsm" style="flex:1" onclick="event.stopPropagation();modalOS(${l.id})">Chegou: lançar OS</button><button class="btn bs bsm" style="flex:1" onclick="event.stopPropagation();modalAgendar(${l.id})">Remarcar</button></div>`:''}
   </div>`;
@@ -491,7 +492,8 @@ async function checarFone(){
   let h='';
   if(_chk.ignorado)h+=`<div class="box red">Esse número está nos ignorados (${esc(_chk.ignorado_nome)} · ${esc(_chk.ignorado_tipo)}).</div>`;
   if(_chk.lead_aberto)h+=`<div class="box yellow">Já existe lead aberto com esse telefone: <b>${esc(_chk.lead_nome||'')}</b> em ${esc(ETAPA_LBL[_chk.lead_etapa])}. <a href="#" onclick="fecharMod();abrirFicha(${_chk.lead_aberto});return false">Abrir</a></div>`;
-  if(_chk.cliente_base){h+=`<div class="box gray">Cliente da base no Oficina Inteligente: <b>${esc(_chk.cliente_nome)}</b> · ${esc(_chk.cliente_veiculo||'')} ${esc(_chk.cliente_placa||'')} · ${_chk.cliente_qtd_os||0} OS. Ele entra como <b>Cliente da base</b> e não conta no CPL das campanhas.</div>`;
+  if(_chk.cliente_crm){h+=`<div class="box green"><b>Já comprou com a gente:</b> ${esc(_chk.cliente_resumo||'')}</div>`;}
+  if(_chk.cliente_base||_chk.cliente_crm){if(_chk.cliente_base)h+=`<div class="box gray">Cliente da base no Oficina Inteligente: <b>${esc(_chk.cliente_nome)}</b> · ${esc(_chk.cliente_veiculo||'')} ${esc(_chk.cliente_placa||'')} · ${_chk.cliente_qtd_os||0} OS. Ele entra como <b>Cliente da base</b> e não conta no CPL das campanhas.</div>`;
     if(!$('nl-n').value)$('nl-n').value=_chk.cliente_nome||''; if(!$('nl-p').value)$('nl-p').value=_chk.cliente_placa||''; if(!$('nl-car').value)$('nl-car').value=_chk.cliente_veiculo||'';}
   $('nl-info').innerHTML=h;
 }
@@ -499,7 +501,7 @@ async function salvarNovo(){
   const f=$('nl-f').value, c=$('nl-c').value;
   if(fone(f).length<12&&!$('nl-n').value){toast('Informe ao menos telefone ou nome');return false;}
   if(_chk.ignorado){toast('Número ignorado. Tire dos ignorados em Configurações se for lead.');return false;}
-  const base=!!_chk.cliente_base&&!c;
+  const base=!!(_chk.cliente_base||_chk.cliente_crm)&&!c;
   const row={nome:$('nl-n').value||null,telefone:f||null,carro:$('nl-car').value||null,placa:$('nl-p').value||null,servico:$('nl-s').value||null,
     campanha:c||null,origem:c?'campanha':(base?'base':'triagem'),etapa:c||base?'novo':'triagem',obs:$('nl-m').value?('1ª mensagem: '+$('nl-m').value):null};
   const {data,error}=await supa.from('crm_leads').insert(row).select().single();
@@ -538,6 +540,7 @@ async function abrirFicha(id,refresh){
        ${l.etapa==='nutricao'?`<div class="box purple" style="margin-top:8px">Em Nutrição desde ${dia(l.nutricao_em)}. <a href="#" onclick="patch(${id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição']);return false">Voltar para o Kanban</a></div>`:''}
      </div>
      ${regua}
+     ${l.cliente_info?`<div class="box ${l.cliente_info.startsWith('Já comprou')?'green':'gray'}"><b>${l.cliente_info.startsWith('Já comprou')?'Cliente que já comprou':'Cliente da base do Oficina Inteligente'}</b><br><span style="font-size:13px">${esc(l.cliente_info.replace(/^(Já comprou pelo CRM|Cliente da base): /,''))}</span></div>`:''}
      <div class="sec"><h4>OS e ganho</h4>${osBox}</div>
      ${l.ia_resumo?`<div class="box purple"><b>Resumo da IA:</b> ${esc(l.ia_resumo)}</div>`:''}
      <div class="sec"><h4>Dados</h4><div class="fg">
