@@ -666,7 +666,7 @@ function periodo(){
 function diaADia(ini,fim,canal,camps){
   const dias=[]; for(let d=new Date(ini);d<fim;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1))dias.push(ymd(d));
   if(!dias.length)return '';
-  const okL=l=>!l.recorrente&&l.origem==='campanha'&&l.campanha&&camps.some(c=>c.codigo===l.campanha);
+  const okL=l=>!l.recorrente&&(l.origem==='campanha'||l.origem==='expad')&&l.campanha&&camps.some(c=>c.codigo===l.campanha);
   const R=dias.map(k=>{
     const cs=CUSTOS.filter(x=>x.dia===k&&(!canal||x.canal===canal));
     const g=cs.filter(x=>x.canal==='google').reduce((s,x)=>s+Number(x.gasto||0),0), m=cs.filter(x=>x.canal==='meta').reduce((s,x)=>s+Number(x.gasto||0),0);
@@ -700,7 +700,7 @@ function renderPainel(){
   const campOk=c=>c.canal!=='outro'&&(!canal||c.canal===canal);
   const camps=CAMPS.filter(campOk);
   const inP=d=>d&&new Date(d)>=ini&&new Date(d)<fim;
-  const leadsP=LEADS.filter(l=>!l.recorrente&&l.origem==='campanha'&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&inP(l.criado_em));
+  const leadsP=LEADS.filter(l=>!l.recorrente&&(l.origem==='campanha'||l.origem==='expad')&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&inP(l.criado_em));
   const ganhosP=LEADS.filter(l=>!l.recorrente&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&l.etapa==='ganho'&&inP(l.ganho_em));
   const custoP=CUSTOS.filter(x=>(!canal||x.canal===canal)&&x.dia>=iso(ini)&&x.dia<iso(fim));
   const temCusto=CUSTOS.length>0;
