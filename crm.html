@@ -670,12 +670,12 @@ async function renderConversas(){
   const m={};data.forEach(x=>{if(!m[x.telefone])m[x.telefone]={fone:x.telefone,ult:x,n:0,lead:null};m[x.telefone].n++;});
   const ignSet=new Set(IGN.map(i=>i.telefone));
   CV.lista=Object.values(m).map(c=>{const l=LEADS.find(x=>x.telefone===c.fone&&!['ganho','perdido','ignorado'].includes(x.etapa))||LEADS.find(x=>x.telefone===c.fone);c.lead=l||null;
-    c.grupo=ignSet.has(c.fone)?'outros':(!l?'outros':(l.etapa==='triagem'?'triagem':(l.origem==='base'?'base':'leads')));return c;});
+    c.grupo=ignSet.has(c.fone)?'ignorados':(!l?'outros':(l.etapa==='triagem'?'triagem':(l.origem==='base'?'base':'leads')));return c;});
   const cont=g=>CV.lista.filter(c=>c.grupo===g).length;
   const lista=CV.lista.filter(c=>c.grupo===CV.filtro);
   if(!CV.fone||!CV.lista.some(c=>c.fone===CV.fone))CV.fone=(lista[0]||{}).fone||null;
   box.innerHTML=`<div style="display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:14px;align-items:start" class="cv-grid">
-   <div class="card" style="padding:0;overflow:hidden"><div class="pills" style="padding:12px">${[['leads','Leads'],['triagem','Triagem'],['base','Base'],['outros','Outros']].map(([k,lb])=>`<button class="pill ${CV.filtro===k?'on':''}" onclick="CV.filtro='${k}';CV.fone=null;renderConversas()">${lb} ${cont(k)}</button>`).join('')}</div>
+   <div class="card" style="padding:0;overflow:hidden"><div class="pills" style="padding:12px">${[['leads','Leads'],['triagem','Triagem'],['base','Base'],['outros','Sem classificar'],['ignorados','Não é lead']].map(([k,lb])=>`<button class="pill ${CV.filtro===k?'on':''}" onclick="CV.filtro='${k}';CV.fone=null;renderConversas()">${lb} ${cont(k)}</button>`).join('')}</div>
     <div style="max-height:70vh;overflow:auto">${lista.map(c=>{const late=c.ult.direcao==='in'&&(Date.now()-new Date(c.ult.criado_em))/6e4>Number(CFG.alerta_sem_resposta_min||15);return `<div onclick="CV.fone='${c.fone}';renderConversas()" style="cursor:pointer;padding:11px 14px;border-top:1px solid #eef0f3;background:${CV.fone===c.fone?'#fdecee':'#fff'}"><div class="row" style="justify-content:space-between"><b>${esc((c.lead&&c.lead.nome)||foneFmt(c.fone))}</b><span class="${late?'red-t':'muted'}" style="font-size:12px">${ha(c.ult.criado_em)}</span></div><div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.ult.direcao==='out'?'Você: ':''}${esc(c.ult.texto||'['+c.ult.tipo+']')}</div>${c.lead?'<div style="margin-top:4px">'+campBadge(c.lead)+' <span class="muted">'+esc(ETAPA_LBL[c.lead.etapa])+'</span></div>':''}</div>`;}).join('')||'<div class="empty">Nada aqui.</div>'}</div></div>
    <div class="card" id="cv-thread"><div class="muted">Selecione uma conversa.</div></div></div>`;
   if(CV.fone)abrirThread(CV.fone);
@@ -683,9 +683,29 @@ async function renderConversas(){
 async function abrirThread(f){
   const c=CV.lista.find(x=>x.fone===f); const l=c&&c.lead;
   const {data}=await supa.from('crm_mensagens').select('*').eq('telefone',f).order('criado_em',{ascending:true}).limit(300);
-  $('cv-thread').innerHTML=`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px"><div><b style="font-size:16px">${esc((l&&l.nome)||foneFmt(f))}</b><div class="muted">${esc(foneFmt(f))} ${l?'· '+esc(ETAPA_LBL[l.etapa]):''}</div></div><div class="row">${l?`<button class="btn bk bsm" onclick="abrirFicha(${l.id})">Abrir ficha</button>`:''}<a class="btn bg bsm" target="_blank" href="https://wa.me/${esc(f)}">Responder no WhatsApp</a></div></div>
+  $('cv-thread').innerHTML=`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px"><div><b style="font-size:16px">${esc((l&&l.nome)||foneFmt(f))}</b><div class="muted">${esc(foneFmt(f))} ${l?'· '+esc(ETAPA_LBL[l.etapa]):''}</div></div><div class="row">${l&&!['ganho','perdido','ignorado'].includes(l.etapa)?`<button class="btn bk bsm" onclick="abrirFicha(${l.id})">Abrir ficha</button>`:`<button class="btn bp bsm" onclick="convParaLead('${esc(f)}')">${l?'Novo atendimento no Kanban':'É lead: mandar pro Kanban'}</button>${l?`<button class="btn bs bsm" onclick="abrirFicha(${l.id})">Ver ficha anterior</button>`:`<button class="btn bs bsm" onclick="convIgnorar('${esc(f)}')">Não é lead</button>`}`}<a class="btn bg bsm" target="_blank" href="https://wa.me/${esc(f)}">Responder no WhatsApp</a></div></div>
    <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto;background:#efeae2;border-radius:10px;padding:12px">${(data||[]).map(x=>`<div style="align-self:${x.direcao==='out'?'flex-end':'flex-start'};max-width:75%;background:${x.direcao==='out'?'#dcf3e4':'#fff'};border-radius:10px;padding:8px 10px;font-size:13.5px">${esc(x.texto||'['+(x.tipo||'mídia')+']')}<div class="muted" style="font-size:11px;text-align:right;margin-top:3px">${x.direcao==='out'?esc(x.origem==='app'?'pelo app':x.origem==='historico'?'histórico':'Central')+' · ':''}${dt(x.criado_em)}</div></div>`).join('')}</div>
    <div class="muted" style="margin-top:8px">Por enquanto a resposta sai pelo app do WhatsApp; ela aparece aqui sozinha. O envio direto pela Central entra na próxima etapa.</div>`;
+}
+
+function convParaLead(f){
+  const c=CV.lista.find(x=>x.fone===f)||{}; const ant=c.lead;
+  modal('Mandar pro Kanban',`<div class="muted">${esc(foneFmt(f))}. A conversa inteira vai junto para a ficha. Se o cliente mandou código de campanha, o CRM já identifica.</div>
+   <div class="fi"><label>Nome do cliente</label><input id="cl-n" value="${esc((ant&&ant.nome)||'')}" placeholder="Ex.: Daniel"></div>
+   <div class="fi"><label>Serviço</label><input id="cl-s" value="${esc((ant&&ant.servico)||'')}" placeholder="Ex.: Arrefecimento"></div>
+   <div class="fi"><label>Campanha</label><select id="cl-c"><option value="">Detectar pela conversa</option>${CAMPS.map(x=>`<option value="${esc(x.codigo)}">${esc(x.codigo)} · ${esc(x.nome)}</option>`).join('')}</select></div>`,
+   async()=>{ const {data,error}=await supa.rpc('crm_lead_da_conversa',{p_fone:f,p_nome:$('cl-n').value,p_campanha:$('cl-c').value,p_servico:$('cl-s').value});
+     if(error){toast('Erro: '+error.message);return false;}
+     await carregarLeads(); renderKanban(); toast('Lead criado no Kanban'); renderConversas(); abrirFicha(data); },'Criar lead');
+  setTimeout(()=>{const n=$('cl-n'); if(n)n.focus();},50);
+}
+function convIgnorar(f){
+  modal('Não é lead',`<div class="muted">${esc(foneFmt(f))} entra na lista de ignorados e sai das conversas de lead.</div>
+   <div class="fi"><label>Nome</label><input id="ig-n" placeholder="Ex.: Fornecedor de peças"></div>
+   <div class="fi"><label>Tipo</label><select id="ig-t"><option>Fornecedor</option><option>Equipe</option><option>Parceiro</option><option>Cliente (não é lead de tráfego)</option><option>Outro</option></select></div>`,
+   async()=>{ const {error}=await supa.from('crm_ignorados').upsert({telefone:f,nome:$('ig-n').value||'Sem nome',tipo:$('ig-t').value});
+     if(error){toast('Erro: '+error.message);return false;}
+     const r=await supa.from('crm_ignorados').select('*').order('nome'); IGN=r.data||[]; CV.fone=null; renderConversas(); toast('Marcado como não lead'); },'Salvar');
 }
 
 /* ═══ CONFIGURAÇÕES ═══ */
