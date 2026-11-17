@@ -42,6 +42,12 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .met .l{font-size:12px;color:var(--gray);font-weight:600}.met .v{font-size:24px;font-weight:800;margin:4px 0}.met .s{font-size:11.5px;color:var(--gray)}
 .met.dark{background:var(--primary);color:#fff;border-color:var(--primary)}.met.dark .l,.met.dark .s{color:#c9cdd4}
 .met.red{background:var(--accent);color:#fff;border-color:var(--accent)}.met.red .l,.met.red .s{color:#fde2e2}
+.dd-chart{display:flex;align-items:flex-end;gap:3px;height:150px;margin-top:12px;padding:0 2px;border-bottom:1px solid var(--border)}
+.dd-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;min-width:0}.dd-col>span{font-size:10px;color:#64748b;margin-top:3px}
+.dd-bars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px}
+.dd-bars i{display:block;width:42%;max-width:16px;border-radius:3px 3px 0 0;position:relative}.dd-g{background:#cbd5e1}.dd-l{background:#111}
+.dd-l b{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:10px;color:#111}
+.dd-sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .fups{margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:13px}.fups>div{padding:6px 10px;background:#f8fafc;border-radius:6px}
 .osk{margin-top:8px;padding:8px 10px;border-radius:8px;background:#ecfdf3;color:#065f46;font-size:12.5px;cursor:pointer;border:1px solid #a7f3d0}.osk.div{background:#fef2f2;color:#991b1b;border-color:#fecaca}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
@@ -165,8 +171,9 @@ code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;
       <div><div class="ptitle">Painel de Tráfego</div><div class="psub">investimento, leads e retorno real em OS faturadas</div></div>
       <div class="row">
         <select id="pn-per" onchange="renderPainel()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;min-height:40px">
-          <option value="mes">Mês atual</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="mesant">Mês passado</option><option value="90">Últimos 90 dias</option>
+          <option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="7">Últimos 7 dias</option><option value="14">Últimos 14 dias</option><option value="mes" selected>Mês atual</option><option value="30">Últimos 30 dias</option><option value="mesant">Mês passado</option><option value="90">Últimos 90 dias</option><option value="custom">Personalizado...</option>
         </select>
+        <span id="pn-custom" style="display:none" class="row"><input type="date" id="pn-de" onchange="renderPainel()" style="border:1.5px solid var(--border);border-radius:8px;padding:7px 8px;min-height:40px"><span class="muted">até</span><input type="date" id="pn-ate" onchange="renderPainel()" style="border:1.5px solid var(--border);border-radius:8px;padding:7px 8px;min-height:40px"></span>
         <select id="pn-canal" onchange="renderPainel()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;min-height:40px">
           <option value="">Google + Meta</option><option value="google">Só Google</option><option value="meta">Só Meta</option>
         </select>
@@ -283,7 +290,7 @@ async function carregarLeads(){
   LEADS=all; return true;
 }
 async function carregarCustos(){
-  const d=new Date(); d.setDate(d.getDate()-120);
+  const d=new Date(); d.setDate(d.getDate()-400);
   const {data}=await supa.from('crm_custos').select('*').gte('dia',d.toISOString().slice(0,10));
   CUSTOS=data||[]; if($('p-painel').classList.contains('on'))renderPainel();
 }
@@ -640,12 +647,52 @@ function renderNutricao(){
 }
 
 /* ═══ PAINEL ═══ */
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function periodo(){
   const v=$('pn-per').value, n=new Date(); let ini, fim=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1);
-  if(v==='mes')ini=new Date(n.getFullYear(),n.getMonth(),1);
+  $('pn-custom').style.display=v==='custom'?'':'none';
+  if(v==='custom'){
+    if(!$('pn-de').value){$('pn-de').value=ymd(new Date(n.getFullYear(),n.getMonth(),1));$('pn-ate').value=ymd(n);}
+    const [a,b,c]=$('pn-de').value.split('-').map(Number), [x,y,z]=($('pn-ate').value||ymd(n)).split('-').map(Number);
+    ini=new Date(a,b-1,c); fim=new Date(x,y-1,z+1); if(fim<=ini)fim=new Date(a,b-1,c+1);
+  }
+  else if(v==='hoje')ini=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  else if(v==='ontem'){ini=new Date(n.getFullYear(),n.getMonth(),n.getDate()-1);fim=new Date(n.getFullYear(),n.getMonth(),n.getDate());}
+  else if(v==='mes')ini=new Date(n.getFullYear(),n.getMonth(),1);
   else if(v==='mesant'){ini=new Date(n.getFullYear(),n.getMonth()-1,1);fim=new Date(n.getFullYear(),n.getMonth(),1);}
   else{ini=new Date(n.getFullYear(),n.getMonth(),n.getDate()-Number(v)+1);}
   return [ini,fim];
+}
+function diaADia(ini,fim,canal,camps){
+  const dias=[]; for(let d=new Date(ini);d<fim;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1))dias.push(ymd(d));
+  if(!dias.length)return '';
+  const okL=l=>!l.recorrente&&l.origem==='campanha'&&l.campanha&&camps.some(c=>c.codigo===l.campanha);
+  const R=dias.map(k=>{
+    const cs=CUSTOS.filter(x=>x.dia===k&&(!canal||x.canal===canal));
+    const g=cs.filter(x=>x.canal==='google').reduce((s,x)=>s+Number(x.gasto||0),0), m=cs.filter(x=>x.canal==='meta').reduce((s,x)=>s+Number(x.gasto||0),0);
+    const ls=LEADS.filter(l=>okL(l)&&ymd(new Date(l.criado_em))===k);
+    const gan=ls.filter(l=>l.etapa==='ganho'), ab=ls.filter(l=>!['ganho','perdido','nutricao','ignorado'].includes(l.etapa)), pe=ls.filter(l=>l.etapa==='perdido'||l.etapa==='nutricao');
+    return {k,g,m,gasto:g+m,leads:ls.length,gan:gan.length,fat:gan.reduce((s,l)=>s+Number(l.os_valor||0),0),ab:ab.length,pe:pe.length};
+  });
+  const T=R.reduce((a,r)=>({gasto:a.gasto+r.gasto,leads:a.leads+r.leads,gan:a.gan+r.gan,fat:a.fat+r.fat,ab:a.ab+r.ab,pe:a.pe+r.pe}),{gasto:0,leads:0,gan:0,fat:0,ab:0,pe:0});
+  const maxL=Math.max(1,...R.map(r=>r.leads)), maxG=Math.max(1,...R.map(r=>r.gasto));
+  const lbl=k=>{const [a,b,c]=k.split('-').map(Number);const d=new Date(a,b-1,c);return ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()]+' '+String(c).padStart(2,'0')+'/'+String(b).padStart(2,'0');};
+  const hojeK=ymd(new Date());
+  const grafico=R.length>1&&R.length<=62?`<div class="dd-chart">${R.map(r=>`<div class="dd-col" title="${lbl(r.k)}: ${r.leads} lead(s), ${brl(r.gasto)} investido, ${r.gan} fechou">
+      <div class="dd-bars"><i class="dd-g" style="height:${Math.round(r.gasto/maxG*100)}%"></i><i class="dd-l" style="height:${Math.round(r.leads/maxL*100)}%"><b>${r.leads||''}</b></i></div>
+      <span>${r.k.slice(8)}</span></div>`).join('')}</div>
+      <div class="row muted" style="font-size:12px;gap:14px;margin:6px 0 12px"><span><i class="dd-sw" style="background:#cbd5e1"></i> investido no dia</span><span><i class="dd-sw" style="background:#111"></i> leads que chegaram</span></div>`:'';
+  return `<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Dia a dia</h3><span class="muted" style="font-size:12px">"Fecharam" = leads que chegaram naquele dia e já viraram OS, em qualquer data</span></div>
+   ${grafico}
+   <div class="scroll-x"><table style="min-width:760px"><thead><tr><th>Dia</th><th class="num">Investido</th><th class="num">Leads</th><th class="num">CPL</th><th class="num">Fecharam</th><th class="num">Conversão</th><th class="num">Faturamento</th><th class="num">Em aberto</th><th class="num">Perdidos</th></tr></thead><tbody>
+   ${R.slice().reverse().map(r=>`<tr${r.k===hojeK?' style="background:#fffbeb"':''}><td><b>${lbl(r.k)}</b>${r.k===hojeK?' <span class="muted">hoje</span>':''}</td>
+     <td class="num">${r.gasto?brl(r.gasto):'<span class="muted">-</span>'}${r.g&&r.m?`<div class="muted" style="font-size:11px">G ${brl0(r.g)} · M ${brl0(r.m)}</div>`:''}</td>
+     <td class="num"><b>${r.leads}</b></td><td class="num">${r.leads&&r.gasto?brl(r.gasto/r.leads):'-'}</td>
+     <td class="num">${r.gan?'<b style="color:#16a34a">'+r.gan+'</b>':'0'}</td><td class="num">${r.leads?Math.round(r.gan/r.leads*100)+'%':'-'}</td>
+     <td class="num">${r.fat?brl(r.fat):'-'}</td><td class="num">${r.ab||'-'}</td><td class="num">${r.pe||'-'}</td></tr>`).join('')}
+   <tr style="border-top:2px solid #111;font-weight:800"><td>Total</td><td class="num">${brl(T.gasto)}</td><td class="num">${T.leads}</td><td class="num">${T.leads&&T.gasto?brl(T.gasto/T.leads):'-'}</td><td class="num">${T.gan}</td><td class="num">${T.leads?Math.round(T.gan/T.leads*100)+'%':'-'}</td><td class="num">${brl(T.fat)}</td><td class="num">${T.ab}</td><td class="num">${T.pe}</td></tr>
+   </tbody></table></div>
+   <div class="muted" style="font-size:12px;margin-top:6px">O custo do dia chega do Google e do Meta ao longo do dia seguinte, então o investimento de hoje pode aparecer parcial.</div></div>`;
 }
 function renderPainel(){
   const [ini,fim]=periodo(), canal=$('pn-canal').value;
@@ -677,6 +724,7 @@ function renderPainel(){
     <div class="met dark"><div class="l">Faturamento gerado</div><div class="v">${brl(fat)}</div><div class="s">OS faturadas no Oficina Inteligente</div></div>
     <div class="met red"><div class="l">ROAS real</div><div class="v">${temCusto&&gasto?roas.toFixed(1).replace('.',',')+'x':'-'}</div><div class="s">cada R$1 investido voltou em OS</div></div>
   </div>
+  ${diaADia(ini,fim,canal,camps)}
   <div class="card" style="margin-bottom:14px"><h3>Resultado por campanha</h3><div class="scroll-x"><table style="min-width:820px"><thead><tr><th>Campanha</th><th>Código</th><th class="num">Investido</th><th class="num">Leads</th><th class="num">CPL</th><th class="num">Ganhos</th><th class="num">Faturamento</th><th class="num">ROAS</th></tr></thead><tbody>
   ${rows.map(r=>{const ro=r.gasto?r.fat/r.gasto:0;return `<tr><td><span class="badge ${r.c.canal==='google'?'b-google':r.c.canal==='meta'?'b-meta':'b-gray'}">${r.c.canal==='google'?'Google':r.c.canal==='meta'?'Meta':'Outro'}</span> <b>${esc(r.c.nome)}</b></td><td><b>${esc(r.c.codigo)}</b></td><td class="num">${temCusto?brl(r.gasto):'-'}</td><td class="num">${r.leads}</td><td class="num">${temCusto&&r.leads?brl(r.gasto/r.leads):'-'}</td><td class="num">${r.ganhos}</td><td class="num">${brl(r.fat)}</td><td class="num" style="font-weight:800;color:${ro>=3?'#16a34a':ro>0?'#b45309':'#cc0000'}">${temCusto&&r.gasto?ro.toFixed(1).replace('.',',')+'x':'-'}</td></tr>`;}).join('')||'<tr><td colspan="8" class="empty">Cadastre as campanhas em Configurações.</td></tr>'}
   ${semVinculo>0?`<tr><td colspan="2" class="muted">Gasto de campanhas sem código vinculado</td><td class="num">${brl(semVinculo)}</td><td colspan="5" class="muted">vincule o ID da campanha em Configurações</td></tr>`:''}
