@@ -129,7 +129,7 @@ code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;
     <button class="tab on" data-p="kanban" onclick="ir('kanban')">Kanban <span class="cnt red" id="c-hoje" style="display:none">0</span></button>
     <button class="tab" data-p="painel" onclick="ir('painel')">Painel de Tráfego</button>
     <button class="tab" data-p="conversas" onclick="ir('conversas')">Conversas</button>
-    <button class="tab gestor" data-p="config" onclick="ir('config')">Configurações</button>
+    <button class="tab" data-p="config" onclick="ir('config')">Configurações</button>
   </div>
 
   <!-- ═══ KANBAN ═══ -->
@@ -251,6 +251,7 @@ function campBadge(l){
 }
 function dotsH(n,max){let s='<span class="dots">';for(let i=0;i<max;i++)s+=`<i class="${i<n?'on':''}"></i>`;return s+'</span>';}
 const REGUA=()=>CFG.regua_fup_horas||[2,24,48,72,168];
+const MOT_NUT=()=>CFG.motivos_nutricao||['Outra cidade: chama quando vier a Uberlândia','Sem previsão: vai programar','Aguardando dinheiro','Carro parado ou vendendo','Outro'];
 const MOTIVOS=()=>CFG.motivos_perda||['Achou caro','Parou de responder','Fez em outro lugar','Só pesquisando','Serviço que não fazemos','Carro vendido'];
 function horasTxt(h){return h<24?h+'h':(h%24===0?(h/24===7?'7 dias':h/24*24+'h'):h+'h');}
 
@@ -420,6 +421,7 @@ async function moverEtapa(id,etapa){
   if(etapa==='orcamento'&&!l.valor_orcamento)return modalOrcamento(id);
   if(etapa==='perdido')return modalPerdido(id);
   if(etapa==='ganho')return modalOS(id);
+  if(etapa==='nutricao')return modalNutricao(id);
   const p={etapa}; if(!l.responsavel&&etapa!=='triagem')p.responsavel=U.email;
   if(etapa==='atendimento'&&!l.ultima_msg_nossa)p.ultima_msg_nossa=new Date().toISOString();
   await patch(id,p,['etapa',ETAPA_LBL[l.etapa]+' → '+ETAPA_LBL[etapa]]);
@@ -490,6 +492,24 @@ function modalPerdido(id){
      if(r){const d=new Date();d.setDate(d.getDate()+Number(r));p.reativar_em=d.toISOString().slice(0,10);}
      await patch(id,p,['perdido','Perdido: '+m.textContent+(r?' · reativar em '+r+' dias':'')+($('pd-n').checked?' · foi para Nutrição':'')]); fecharFicha(); },'Marcar perdido');
 }
+function modalNutricao(id){
+  const l=L(id); if(!l)return;
+  modal('Mandar para Nutrição',`<div class="muted">Não é venda perdida: o cliente tem interesse, mas não adianta mais follow up agora. Sai do Kanban e da régua e fica na lista de Nutrição.</div>
+   <div class="fi"><label>Motivo (obrigatório)</label><div class="pills" id="nt-m">${MOT_NUT().map(m=>`<button type="button" class="pill" onclick="document.querySelectorAll('#nt-m .pill').forEach(p=>p.classList.toggle('on',p===this))">${esc(m)}</button>`).join('')}</div></div>
+   <div class="fi"><label>Interesse</label><input id="nt-i" value="${esc(l.interesse||l.servico||'')}" placeholder="Ex.: Troca de óleo do câmbio"></div>
+   <div class="fi"><label>Lembrar de chamar de novo em</label><select id="nt-r"><option value="">Não lembrar (só quando ele chamar)</option><option value="15">15 dias</option><option value="30">30 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="d">Escolher data...</option></select>
+     <input type="date" id="nt-d" style="display:none;margin-top:6px"></div>
+   <div class="fi"><label>Observação</label><textarea id="nt-o" placeholder="Ex.: mora em Araguari, vem a Uberlândia todo mês"></textarea></div>`,
+   async()=>{ const m=document.querySelector('#nt-m .pill.on'); if(!m){toast('Escolha o motivo');return false;}
+     const r=$('nt-r').value; let re=null;
+     if(r==='d'){re=$('nt-d').value||null;} else if(r){const d=new Date();d.setDate(d.getDate()+Number(r));re=ymd(d);}
+     const o=$('nt-o').value.trim();
+     const p={etapa:'nutricao',motivo_nutricao:m.textContent,interesse:$('nt-i').value||null,reativar_em:re};
+     if(o)p.obs=((l.obs?l.obs+'\n':'')+'Nutrição: '+o);
+     await patch(id,p,['nutricao','Foi para Nutrição: '+m.textContent+(re?' · volta em '+re.split('-').reverse().join('/'):'')+(o?' · '+o:'')]);
+     fecharFicha(); toast('Foi para Nutrição'); },'Mandar para Nutrição');
+  setTimeout(()=>{const s=$('nt-r'); if(s)s.onchange=()=>{$('nt-d').style.display=s.value==='d'?'':'none';};},30);
+}
 function modalOS(id){
   const l=L(id);
   modal('Lançar OS do Oficina Inteligente',`<div class="muted">${esc(l.nome||'')} ${l.carro?'· '+esc(l.carro):''}</div>
@@ -549,7 +569,7 @@ async function abrirFicha(id,refresh){
   const c=l.campanha?CAMPS.find(x=>x.codigo===l.campanha):null;
   const max=REGUA().length;
   const etapasPill=ETAPAS.filter(e=>e[0]!=='triagem'||l.etapa==='triagem').map(([k,lb])=>`<button class="pill ${l.etapa===k?'on':''}" onclick="moverEtapa(${id},'${k}')">${lb}</button>`).join('')
-    +`<button class="pill ganho ${l.etapa==='ganho'?'on':''}" onclick="moverEtapa(${id},'ganho')">Ganho</button><button class="pill perdido ${l.etapa==='perdido'?'on':''}" onclick="moverEtapa(${id},'perdido')">Perdido</button>`;
+    +`<button class="pill ganho ${l.etapa==='ganho'?'on':''}" onclick="moverEtapa(${id},'ganho')">Ganho</button><button class="pill perdido ${l.etapa==='perdido'?'on':''}" onclick="moverEtapa(${id},'perdido')">Perdido</button><button class="pill ${l.etapa==='nutricao'?'on':''}" style="${l.etapa==='nutricao'?'background:#6d28d9;border-color:#6d28d9;color:#fff':'border-color:#c4b5fd;color:#5b21b6'}" onclick="moverEtapa(${id},'nutricao')">Nutrição</button>`;
   let osBox='';
   if(l.os_numero){const st={pendente:['yellow','Aguardando conferência do robô'],aguardando:['yellow','OS aberta, aguardando faturamento'],confirmado:['green','Confirmado'],divergente:['red','Divergente: conferir'],sugerido:['purple','Possível ganho: confirmar?']}[l.os_status||'pendente'];
     osBox=`<div class="box ${st[0]}"><b>OS ${esc(l.os_numero)}</b> · ${st[1]}${l.os_valor?' · faturado '+brl(l.os_valor):''}${l.os_detalhe?'<br><span style="font-size:12px">'+esc(l.os_detalhe)+'</span>':''}</div>
@@ -558,7 +578,7 @@ async function abrirFicha(id,refresh){
   let regua='';
   if(['atendimento','orcamento'].includes(l.etapa)){
     regua=`<div class="sec"><h4>Régua de follow up</h4><div class="row" style="justify-content:space-between"><span>${dotsH(l.fup_n,max)} <b>FUP ${Math.min(l.fup_n,max)}/${max}</b></span><span class="muted">${l.fup_proximo?'próximo: '+quando(l.fup_proximo):(l.fup_base?'':'aguardando sua resposta ao cliente')}</span></div>
-    <div class="row" style="margin-top:8px"><button class="btn bk bsm" onclick="fupFeito(${id})">Follow up feito</button><button class="btn bs bsm" onclick="respondeu(${id})">Cliente respondeu</button>${!l.fup_base?`<button class="btn bs bsm" onclick="respondi(${id})">Já respondi</button>`:''}${l.fup_n>0?`<button class="btn bs bsm" style="color:#9a3412;border-color:#fed7aa" onclick="fupDesfazer(${id})">Desfazer último</button>`:''}</div>
+    <div class="row" style="margin-top:8px"><button class="btn bk bsm" onclick="fupFeito(${id})">Follow up feito</button><button class="btn bs bsm" onclick="respondeu(${id})">Cliente respondeu</button>${!l.fup_base?`<button class="btn bs bsm" onclick="respondi(${id})">Já respondi</button>`:''}${l.fup_n>0?`<button class="btn bs bsm" style="color:#9a3412;border-color:#fed7aa" onclick="fupDesfazer(${id})">Desfazer último</button>`:''}<button class="btn bs bsm" style="border-color:#c4b5fd;color:#5b21b6" onclick="modalNutricao(${id})">Parar follow up: Nutrição</button></div>
     <div id="f-fups" class="fups"></div></div>`;
   }
   const d=$('drawer');
@@ -571,7 +591,7 @@ async function abrirFicha(id,refresh){
      <div class="sec"><h4>Etapa</h4><div class="pills">${etapasPill}</div>
        ${l.etapa==='agendado'&&l.agendado_para?`<div class="box ${noShow(l)?'red':'gray'}" style="margin-top:8px"><b>${esc(quando(l.agendado_para))}</b>${noShow(l)?' · passou do horário sem OS':''} <a href="#" onclick="modalAgendar(${id});return false">remarcar</a></div>`:''}
        ${l.etapa==='perdido'?`<div class="box red" style="margin-top:8px">Perdido: <b>${esc(l.motivo_perda||'')}</b> na etapa ${esc(ETAPA_LBL[l.etapa_perda]||'')}${l.reativar_em?' · reativar em '+dia(l.reativar_em):''}${l.obs_perda?'<br>'+esc(l.obs_perda):''}</div>`:''}
-       ${l.etapa==='nutricao'?`<div class="box purple" style="margin-top:8px">Em Nutrição desde ${dia(l.nutricao_em)}. <a href="#" onclick="patch(${id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição']);return false">Voltar para o Kanban</a></div>`:''}
+       ${l.etapa==='nutricao'?`<div class="box purple" style="margin-top:8px">Em Nutrição desde ${dia(l.nutricao_em)}${l.motivo_nutricao?': <b>'+esc(l.motivo_nutricao)+'</b>':''}${l.reativar_em?' · volta para o Kanban em <b>'+dia(l.reativar_em)+'</b>':''}. <a href="#" onclick="patch(${id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição']);return false">Voltar para o Kanban</a></div>`:''}
      </div>
      ${regua}
      ${l.cliente_info?`<div class="box ${l.cliente_info.startsWith('Já comprou')?'green':'gray'}"><b>${l.cliente_info.startsWith('Já comprou')?'Cliente que já comprou':'Cliente da base do Oficina Inteligente'}</b><br><span style="font-size:13px">${esc(l.cliente_info.replace(/^(Já comprou pelo CRM|Cliente da base): /,''))}</span></div>`:''}
@@ -642,7 +662,7 @@ function renderNutricao(){
     <button class="btn bp" disabled title="Disponível quando o WhatsApp oficial estiver ligado">Criar disparo de oferta</button></div></div>
     <div class="mets">${segs.slice(0,6).map(s=>`<div class="met"><div class="l">${esc(s[0])}</div><div class="v">${s[1]}</div></div>`).join('')||''}</div>
     <div class="card"><h3>Leads em nutrição</h3><div class="scroll-x"><table><thead><tr><th>Lead</th><th>Interesse</th><th>Por que entrou</th><th>Desde</th><th></th></tr></thead><tbody>
-    ${ls.map(l=>`<tr class="tr-click" onclick="abrirFicha(${l.id})"><td><b>${esc(l.nome||foneFmt(l.telefone))}</b><div class="muted">${esc(l.carro||'')}</div></td><td>${esc(l.interesse||l.servico||'')}</td><td class="muted">${esc(l.motivo_perda||'Sem resposta após os follow ups')}</td><td class="muted">${dia(l.nutricao_em)}</td><td><button class="btn bs bsm" onclick="event.stopPropagation();patch(${l.id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição'])">Voltar ao Kanban</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum lead em nutrição ainda.</td></tr>'}
+    ${ls.map(l=>`<tr class="tr-click" onclick="abrirFicha(${l.id})"><td><b>${esc(l.nome||foneFmt(l.telefone))}</b><div class="muted">${esc(l.carro||'')}</div></td><td>${esc(l.interesse||l.servico||'')}</td><td class="muted">${esc(l.motivo_nutricao||l.motivo_perda||'Sem resposta aos follow ups')}${l.reativar_em?'<div style="color:#5b21b6">volta em '+dia(l.reativar_em)+'</div>':''}</td><td class="muted">${dia(l.nutricao_em)}</td><td><button class="btn bs bsm" onclick="event.stopPropagation();patch(${l.id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição'])">Voltar ao Kanban</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum lead em nutrição ainda.</td></tr>'}
     </tbody></table></div><div class="muted" style="margin-top:10px">Oferta sai por modelo aprovado pela Meta (cobrado por envio) e sempre com a opção "responda SAIR". Quem responder volta para o Kanban.</div></div>`;
 }
 
@@ -827,7 +847,12 @@ async function convVoltarLead(f){
 function waNumero(){return (CFG.whatsapp_numero||'5534998131003');}
 function linkCamp(c){return 'https://wa.me/'+waNumero()+'?text='+encodeURIComponent(c.mensagem);}
 function renderConfig(){
-  if(!EH_GESTOR){$('config').innerHTML='<div class="card">Só gestores alteram as configurações.</div>';return;}
+  const listas=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+  <div class="card"><h3>Motivos de perda</h3><div class="muted" style="margin:-6px 0 10px">Aparecem para escolher ao marcar Perdido. Um por linha.</div>
+   <div class="fi"><textarea id="cf-mot" style="min-height:160px">${esc(MOTIVOS().join('\n'))}</textarea></div><div style="margin-top:8px"><button class="btn bp bsm" onclick="salvarLista('motivos_perda','cf-mot')">Salvar motivos de perda</button></div></div>
+  <div class="card"><h3>Motivos de Nutrição</h3><div class="muted" style="margin:-6px 0 10px">Cliente que não está perdido, mas não adianta mais follow up agora. Um por linha.</div>
+   <div class="fi"><textarea id="cf-nut" style="min-height:160px">${esc(MOT_NUT().join('\n'))}</textarea></div><div style="margin-top:8px"><button class="btn bp bsm" onclick="salvarLista('motivos_nutricao','cf-nut')">Salvar motivos de Nutrição</button></div></div></div>`;
+  if(!EH_GESTOR){$('config').innerHTML=listas+'<div class="muted" style="margin-top:10px">Campanhas, régua e ignorados: só gestores alteram.</div>';return;}
   const r=REGUA();
   $('config').innerHTML=`
   <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><div><h3 style="margin:0">Campanhas e códigos</h3><div class="muted">Cada campanha tem um código. O botão da LP manda a mensagem pronta com ele, e o CRM etiqueta o lead sozinho.</div></div><button class="btn bk" onclick="modalCamp()">+ Nova campanha</button></div>
@@ -840,8 +865,7 @@ function renderConfig(){
    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">${r.map((h,i)=>`<div class="fi"><label>FUP ${i+1} (horas)</label><input type="number" min="1" class="rg-h" value="${h}"></div>`).join('')}</div>
    <div class="row" style="margin-top:10px"><button class="btn bs bsm" onclick="regAdd(1)">+ Follow up</button><button class="btn bs bsm" onclick="regAdd(-1)">− Follow up</button><button class="btn bp bsm" onclick="salvarRegua()">Salvar régua</button><span class="muted">Hoje: ${r.map(horasTxt).join(' · ')}</span></div></div>
 
-  <div class="card"><h3>Motivos de perda</h3><div class="muted" style="margin:-6px 0 10px">Lista fixa que a Samille escolhe ao marcar Perdido. Um por linha.</div>
-   <div class="fi"><textarea id="cf-mot" style="min-height:140px">${esc(MOTIVOS().join('\n'))}</textarea></div><div style="margin-top:8px"><button class="btn bp bsm" onclick="salvarCfg('motivos_perda',$('cf-mot').value.split('\\n').map(s=>s.trim()).filter(Boolean))">Salvar motivos</button></div></div>
+  ${listas}
 
   <div class="card"><h3>Contatos ignorados (${IGN.length})</h3><div class="muted" style="margin:-6px 0 10px">Fornecedores, equipe e parceiros. Nunca viram lead e a IA nunca responde. Grupos já ficam de fora sozinhos.</div>
    <div class="row" style="margin-bottom:12px"><input id="ig-tel" placeholder="Telefone" style="border:1.5px solid var(--border);border-radius:8px;padding:9px;min-height:40px"><input id="ig-nome" placeholder="Nome" style="border:1.5px solid var(--border);border-radius:8px;padding:9px;min-height:40px"><select id="ig-tipo" style="border:1.5px solid var(--border);border-radius:8px;padding:9px;min-height:40px"><option>Fornecedor</option><option>Interno</option><option>Parceiro</option><option>Outro</option></select><button class="btn bk bsm" onclick="addIgn()">Adicionar</button></div>
@@ -849,6 +873,8 @@ function renderConfig(){
 }
 function regAdd(d){const r=[...document.querySelectorAll('.rg-h')].map(i=>Number(i.value)||0);if(d>0)r.push((r[r.length-1]||24)*2);else if(r.length>1)r.pop();CFG.regua_fup_horas=r;renderConfig();}
 async function salvarRegua(){const r=[...document.querySelectorAll('.rg-h')].map(i=>Number(i.value)).filter(n=>n>0);for(let i=1;i<r.length;i++)if(r[i]<=r[i-1])return toast('Cada follow up precisa ser depois do anterior');await salvarCfg('regua_fup_horas',r);}
+async function salvarLista(k,el){const v=$(el).value.split('\n').map(x=>x.trim()).filter(Boolean);if(!v.length)return toast('A lista não pode ficar vazia');
+  const {error}=await supa.rpc('crm_salvar_lista',{p_chave:k,p_valor:v});if(error)return toast('Erro: '+error.message);CFG[k]=v;toast('Salvo');renderConfig();}
 async function salvarCfg(k,v){const {error}=await supa.from('crm_config').upsert({chave:k,valor:v,atualizado_em:new Date().toISOString()});if(error)return toast('Erro: '+error.message);CFG[k]=v;toast('Salvo');renderConfig();}
 async function addIgn(){const t=fone($('ig-tel').value);if(t.length<12)return toast('Telefone inválido');const {error}=await supa.from('crm_ignorados').upsert({telefone:t,nome:$('ig-nome').value||'Sem nome',tipo:$('ig-tipo').value});if(error)return toast('Erro: '+error.message);const r=await supa.from('crm_ignorados').select('*').order('nome');IGN=r.data||[];renderConfig();}
 async function delIgn(t){await supa.from('crm_ignorados').delete().eq('telefone',t);IGN=IGN.filter(i=>i.telefone!==t);renderConfig();}
