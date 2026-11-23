@@ -695,6 +695,11 @@ function diaADia(ini,fim,canal,camps){
     return {k,g,m,gasto:g+m,leads:ls.length,gan:gan.length,fat:gan.reduce((s,l)=>s+Number(l.os_valor||0),0),ab:ab.length,pe:pe.length};
   });
   const T=R.reduce((a,r)=>({gasto:a.gasto+r.gasto,leads:a.leads+r.leads,gan:a.gan+r.gan,fat:a.fat+r.fat,ab:a.ab+r.ab,pe:a.pe+r.pe}),{gasto:0,leads:0,gan:0,fat:0,ab:0,pe:0});
+  // conciliação: ganhos fechados no período cujo lead chegou antes dele (entram no painel por campanha, não no dia a dia)
+  const antes=LEADS.filter(l=>!l.recorrente&&l.campanha&&camps.some(c=>c.codigo===l.campanha)&&l.etapa==='ganho'&&l.ganho_em&&new Date(l.ganho_em)>=ini&&new Date(l.ganho_em)<fim&&new Date(l.criado_em)<ini);
+  const antesFat=antes.reduce((s,l)=>s+Number(l.os_valor||0),0);
+  const linhaConc=antes.length?`<tr class="muted"><td colspan="4">+ Ganhos fechados no período de leads que chegaram antes dele</td><td class="num">${antes.length}</td><td></td><td class="num">${brl(antesFat)}</td><td colspan="2"></td></tr>
+   <tr style="font-weight:800;background:#f8fafc"><td colspan="4">Ganhos no período (igual ao resultado por campanha)</td><td class="num">${T.gan+antes.length}</td><td></td><td class="num">${brl(T.fat+antesFat)}</td><td colspan="2"></td></tr>`:'';
   const maxL=Math.max(1,...R.map(r=>r.leads)), maxG=Math.max(1,...R.map(r=>r.gasto));
   const lbl=k=>{const [a,b,c]=k.split('-').map(Number);const d=new Date(a,b-1,c);return ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()]+' '+String(c).padStart(2,'0')+'/'+String(b).padStart(2,'0');};
   const hojeK=ymd(new Date());
@@ -711,6 +716,7 @@ function diaADia(ini,fim,canal,camps){
      <td class="num">${r.gan?'<b style="color:#16a34a">'+r.gan+'</b>':'0'}</td><td class="num">${r.leads?Math.round(r.gan/r.leads*100)+'%':'-'}</td>
      <td class="num">${r.fat?brl(r.fat):'-'}</td><td class="num">${r.ab||'-'}</td><td class="num">${r.pe||'-'}</td></tr>`).join('')}
    <tr style="border-top:2px solid #111;font-weight:800"><td>Total</td><td class="num">${brl(T.gasto)}</td><td class="num">${T.leads}</td><td class="num">${T.leads&&T.gasto?brl(T.gasto/T.leads):'-'}</td><td class="num">${T.gan}</td><td class="num">${T.leads?Math.round(T.gan/T.leads*100)+'%':'-'}</td><td class="num">${brl(T.fat)}</td><td class="num">${T.ab}</td><td class="num">${T.pe}</td></tr>
+   ${linhaConc}
    </tbody></table></div>
    <div class="muted" style="font-size:12px;margin-top:6px">O custo do dia chega do Google e do Meta ao longo do dia seguinte, então o investimento de hoje pode aparecer parcial.</div></div>`;
 }
