@@ -698,6 +698,10 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
                 Carteira aberta
                 <span class="nbadge" id="nb-cart">0</span>
             </div>
+            <div class="ni sub gestor-only" onclick="go('relfu')" id="ni-relfu">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V9m4 8V5m4 12v-4M4 21h16"/></svg>
+                Relatório de Follow-up
+            </div>
             <div class="ni sub" onclick="go('followup')" id="ni-followup">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Follow-up
@@ -1112,6 +1116,22 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
         </div>
     </div>
     <div id="cart-body"><div class="empty"><p>Carregando...</p></div></div>
+</div>
+
+<div id="pg-relfu" class="page">
+    <div class="ph">
+        <div><div class="ptitle">Relatório de Follow-up</div><div class="psub">quantos contatos cada vendedor registrou e quantos orçamentos fecharam depois do follow-up</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="rfu-per" onchange="relfuPeriodo()" style="width:auto;padding:8px 12px;font-size:13px">
+                <option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="7">Últimos 7 dias</option>
+                <option value="mes" selected>Este mês</option><option value="mesant">Mês passado</option><option value="custom">Escolher datas</option>
+            </select>
+            <input type="date" id="rfu-de" onchange="document.getElementById('rfu-per').value='custom';relfuRender()" style="width:auto;padding:7px 10px;font-size:13px">
+            <input type="date" id="rfu-ate" onchange="document.getElementById('rfu-per').value='custom';relfuRender()" style="width:auto;padding:7px 10px;font-size:13px">
+            <select id="rfu-vend" onchange="relfuRender()" style="width:auto;padding:8px 12px;font-size:13px"><option value="">Todos os vendedores</option></select>
+        </div>
+    </div>
+    <div id="rfu-body"><div class="empty"><p>Carregando...</p></div></div>
 </div>
 
 <div id="pg-followup" class="page">
@@ -3024,6 +3044,7 @@ function go(pg) {
     if (pg==='novo')     { initNovo(); }
     if (pg==='followup') { renderFu(); }
     if (pg==='carteira') { renderCarteira(); }
+    if (pg==='relfu')    { relfuPeriodo(true); }
     if (pg==='servicos')     { svcRender(); }
     if (pg==='servicos-cfg') { svcRenderCfg(); }
     if (pg==='placar')       { plcRender(); }
@@ -3038,11 +3059,159 @@ function go(pg) {
     }
 }
 
+// ═══ RELATÓRIO DE FOLLOW-UP (gestor) ═══
+// follow-up válido = registro feito por um vendedor no histórico do orçamento.
+// Não contam: registros automáticos do SISTEMA e o log de "link de autorização gerado" (🔗), que aparece à parte.
+function relfuEhLink(f){ return /^\s*🔗/.test(String(f.txt||'')); }
+function relfuEntradas(de,ate,vend,incluirLinks){
+    var out=[];
+    (db.orcs||[]).forEach(function(o){
+        if(o.deleted) return;
+        (o.fus||[]).forEach(function(f,ix){
+            var v=f.vend||''; if(!v || v==='SISTEMA') return;
+            if(!incluirLinks && relfuEhLink(f)) return;
+            var d=String(f.data||'').slice(0,10); if(!d || d<de || d>ate) return;
+            if(vend && v!==vend) return;
+            out.push({o:o, vend:v, data:d, txt:f.txt||'', hora:f.data_hora||'', link:relfuEhLink(f), ix:ix});
+        });
+    });
+    return out;
+}
+function relfuPeriodo(primeira){
+    var per=document.getElementById('rfu-per').value, n=new Date(), de, ate=hoje();
+    if(per==='custom'){ if(primeira && !document.getElementById('rfu-de').value){ document.getElementById('rfu-per').value='mes'; return relfuPeriodo(); } return relfuRender(); }
+    if(per==='hoje') de=hoje();
+    else if(per==='ontem'){ de=_dLocal(new Date(n.getFullYear(),n.getMonth(),n.getDate()-1)); ate=de; }
+    else if(per==='7') de=_dLocal(new Date(n.getFullYear(),n.getMonth(),n.getDate()-6));
+    else if(per==='mesant'){ de=_dLocal(new Date(n.getFullYear(),n.getMonth()-1,1)); ate=_dLocal(new Date(n.getFullYear(),n.getMonth(),0)); }
+    else de=_dLocal(new Date(n.getFullYear(),n.getMonth(),1));
+    document.getElementById('rfu-de').value=de; document.getElementById('rfu-ate').value=ate;
+    relfuRender();
+}
+function relfuRender(){
+    var body=document.getElementById('rfu-body'); if(!body) return;
+    var de=document.getElementById('rfu-de').value, ate=document.getElementById('rfu-ate').value;
+    if(!de||!ate){ body.innerHTML='<div class="empty"><p>Escolha o período.</p></div>'; return; }
+    if(de>ate){ var t=de; de=ate; ate=t; }
+    var fV=document.getElementById('rfu-vend').value||'';
+    // lista de vendedores (quem já registrou follow-up ou tem orçamento)
+    var sv=document.getElementById('rfu-vend');
+    if(sv && sv.options.length<=1){
+        var vs={}; (db.orcs||[]).forEach(function(o){ if(o.vend) vs[o.vend]=1; (o.fus||[]).forEach(function(f){ if(f.vend&&f.vend!=='SISTEMA') vs[f.vend]=1; }); });
+        Object.keys(vs).sort().forEach(function(v){ var op=document.createElement('option'); op.value=v; op.textContent=primeiroNome(v)+' · '+v.split(' ').slice(1,2).join(''); sv.appendChild(op); });
+    }
+    var brl=function(v){ return fmtBRL(v||0); };
+    var dLoc=function(iso){ return iso?_dLocal(new Date(iso)):''; };
+    var fus=relfuEntradas(de,ate,fV,true);
+    var reais=fus.filter(function(f){return !f.link;}), links=fus.filter(function(f){return f.link;});
+    // fechamentos do período (pela data de aprovação) e se tiveram follow-up antes de fechar
+    var fech=(db.orcs||[]).filter(function(o){ var d=dLoc(o.aprovadoEm); return !o.deleted && o.status==='fechado' && d && d>=de && d<=ate && (!fV || o.vend===fV); }).map(function(o){
+        var dAp=dLoc(o.aprovadoEm);
+        var antes=(o.fus||[]).filter(function(f){ return f.vend && f.vend!=='SISTEMA' && !relfuEhLink(f) && String(f.data||'').slice(0,10)<=dAp; });
+        var prim=antes.length?antes.map(function(f){return String(f.data).slice(0,10);}).sort()[0]:'';
+        var dias=prim?Math.round((new Date(dAp+'T12:00')-new Date(prim+'T12:00'))/86400000):null;
+        return {o:o, dAp:dAp, nFu:antes.length, prim:prim, dias:dias, val:Number(o.valorAprovado!=null?o.valorAprovado:o.val)||0};
+    });
+    var fechFu=fech.filter(function(x){return x.nFu>0;});
+    // orçamentos trabalhados no período e quantos já fecharam (em qualquer data depois do contato)
+    var trab={}, trab1={}; reais.forEach(function(f){ trab[f.o.id]=f.o; if(!trab1[f.o.id]||f.data<trab1[f.o.id]) trab1[f.o.id]=f.data; });
+    var trabArr=Object.values(trab);
+    // fechou DEPOIS do contato (aprovação na data do 1º follow-up do período ou depois)
+    var fechouDepois=function(o){ var d=dLoc(o.aprovadoEm); return o.status==='fechado' && d && d>=trab1[o.id]; };
+    var trabFech=trabArr.filter(fechouDepois);
+    // dias úteis (seg a sáb) do período até hoje
+    var du=0; for(var d=new Date(de+'T12:00'), fim=new Date((ate<hoje()?ate:hoje())+'T12:00'); d<=fim; d.setDate(d.getDate()+1)){ if(d.getDay()!==0) du++; }
+    // ── por vendedor ──
+    var porV={};
+    function pv(v){ return porV[v]||(porV[v]={vend:v,fu:0,links:0,orcs:{},dias:{},fech:0,fechFu:0,valFu:0,trab:0,trabFech:0}); }
+    reais.forEach(function(f){ var p=pv(f.vend); p.fu++; p.orcs[f.o.id]=1; p.dias[f.data]=1; });
+    links.forEach(function(f){ pv(f.vend).links++; });
+    fech.forEach(function(x){ var p=pv(x.o.vend||'(sem vendedor)'); p.fech++; if(x.nFu){ p.fechFu++; p.valFu+=x.val; } });
+    Object.keys(porV).forEach(function(v){ var p=porV[v]; var ids=Object.keys(p.orcs); p.trab=ids.length; p.trabFech=ids.filter(function(id){ var o=trab[id]; return o&&fechouDepois(o); }).length; });
+    var vArr=Object.values(porV).filter(function(p){return p.vend!=='(sem vendedor)'||p.fech;}).sort(function(a,b){ return b.fu-a.fu || b.fechFu-a.fechFu; });
+    var th=function(t,i){ return '<th style="text-align:'+(i===0?'left':'right')+';padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase;white-space:nowrap">'+t+'</th>'; };
+    var td=function(v,al,extra){ return '<td style="text-align:'+(al||'right')+';padding:8px 6px;border-bottom:1px solid #f0f0f0;'+(extra||'')+'">'+v+'</td>'; };
+    var pct=function(a,b){ return b?Math.round(a/b*100)+'%':'-'; };
+    var h='';
+    var card=function(tit,val,sub,cor){ return '<div class="card" style="padding:14px;min-width:0'+(cor?';border-left:4px solid '+cor:'')+'"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">'+tit+'</div><div style="font-size:26px;font-weight:900;white-space:nowrap">'+val+'</div><div style="font-size:12.5px;color:var(--gray)">'+sub+'</div></div>'; };
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px">';
+    h+=card('Follow-ups registrados',reais.length,(du?(reais.length/du).toFixed(1).replace('.',',')+' por dia útil':'')+(links.length?' · +'+links.length+' links enviados':''));
+    h+=card('Orçamentos trabalhados',trabArr.length,'receberam ao menos 1 contato');
+    h+=card('Fecharam depois do follow-up',trabFech.length,pct(trabFech.length,trabArr.length)+' dos trabalhados (até hoje)','#16a34a');
+    h+=card('Fechamentos no período',fech.length,fechFu.length+' tiveram follow-up antes · '+pct(fechFu.length,fech.length));
+    h+=card('Valor fechado com follow-up',brl(fechFu.reduce(function(a,x){return a+x.val;},0)),'de '+brl(fech.reduce(function(a,x){return a+x.val;},0))+' fechados no período','#16a34a');
+    h+='</div>';
+    // tabela por vendedor
+    h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:10px">Por vendedor</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+      +['Vendedor','Follow-ups','Por dia útil','Dias sem registro','Orç. trabalhados','Já fecharam','Conversão','Fechou no período','Com follow-up antes','Valor c/ follow-up','Links enviados'].map(th).join('')+'</tr></thead><tbody>';
+    if(!vArr.length) h+='<tr><td colspan="11" style="padding:18px;text-align:center;color:var(--gray)">Nenhum registro no período.</td></tr>';
+    vArr.forEach(function(p){
+        var nd=Object.keys(p.dias).length, sem=Math.max(0,du-nd);
+        h+='<tr style="cursor:pointer" onclick="document.getElementById(\'rfu-vend\').value=\''+String(p.vend).replace(/'/g,"\\'")+'\';relfuRender()">'
+          +td('<b>'+escH(primeiroNome(p.vend))+'</b>','left')+td('<b style="font-size:15px">'+p.fu+'</b>')+td(du?(p.fu/du).toFixed(1).replace('.',','):'-')
+          +td(sem,'right',sem>0?'color:var(--red);font-weight:700':'color:#16a34a')+td(p.trab)+td(p.trabFech,'right','color:#16a34a;font-weight:700')+td(pct(p.trabFech,p.trab))
+          +td(p.fech)+td(p.fechFu+' <span style="color:var(--gray)">('+pct(p.fechFu,p.fech)+')</span>')+td(brl(p.valFu),'right','font-weight:700')+td(p.links||'-')+'</tr>';
+    });
+    h+='</tbody></table></div><div style="font-size:12px;color:var(--gray);margin-top:8px">Dias sem registro: dias úteis (seg a sáb) do período em que o vendedor não registrou nenhum follow-up. Já fecharam: dos orçamentos que ele contatou no período, quantos estão fechados hoje.</div></div>';
+    // matriz dia a dia
+    var dias=[]; for(var d2=new Date(ate+'T12:00'); _dLocal(d2)>=de && dias.length<62; d2.setDate(d2.getDate()-1)) dias.push(_dLocal(d2));
+    var vCols=vArr.filter(function(p){return p.fu||p.links;}).map(function(p){return p.vend;});
+    if(dias.length>1 && vCols.length){
+        var mapa={}; reais.forEach(function(f){ var k=f.data+'|'+f.vend; mapa[k]=(mapa[k]||0)+1; });
+        var mx=Math.max(1,...Object.values(mapa));
+        var sem=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+        h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:10px">Follow-ups por dia</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+th('Dia',0)+vCols.map(function(v,i){return th(escH(primeiroNome(v)),i+1);}).join('')+th('Total',9)+'</tr></thead><tbody>';
+        dias.forEach(function(k){
+            var dt=new Date(k+'T12:00'), dom=dt.getDay()===0, tot=0;
+            var cells=vCols.map(function(v){ var n=mapa[k+'|'+v]||0; tot+=n; var a=n?0.12+0.6*(n/mx):0;
+                return td(n?'<b>'+n+'</b>':(dom?'':'<span style="color:var(--red)">0</span>'),'right','background:'+(n?'rgba(22,163,74,'+a.toFixed(2)+')':'transparent')); }).join('');
+            h+='<tr'+(k===hoje()?' style="outline:2px solid #f59e0b"':'')+'>'+td('<b>'+sem[dt.getDay()]+' '+isoToBr(k).slice(0,5)+'</b>'+(k===hoje()?' <span style="color:var(--gray)">hoje</span>':''),'left',dom?'color:var(--gray)':'')+cells+td('<b>'+tot+'</b>')+'</tr>';
+        });
+        h+='</tbody></table></div></div>';
+    }
+    // conversões
+    var conv=fech.slice().sort(function(a,b){ return b.dAp.localeCompare(a.dAp); });
+    h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:4px">Orçamentos fechados no período ('+conv.length+')</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">quantos contatos foram feitos antes de fechar · clique para abrir</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+      +['Nº / Cliente','Vendedor','Follow-ups antes','1º contato','Fechou em','Dias até fechar','Valor'].map(th).join('')+'</tr></thead><tbody>';
+    if(!conv.length) h+='<tr><td colspan="7" style="padding:18px;text-align:center;color:var(--gray)">Nenhum fechamento no período.</td></tr>';
+    conv.slice(0,300).forEach(function(x){
+        h+='<tr style="cursor:pointer" onclick="abrirModal('+x.o.id+')">'+td('<b>'+escH(x.o.num||'—')+'</b><br><span style="color:var(--gray)">'+escH(x.o.cli||'')+'</span>','left')+td(escH(primeiroNome(x.o.vend||'—')),'left')
+          +td(x.nFu?'<b>'+x.nFu+'</b>':'<span style="color:var(--gray)">fechou sem follow-up</span>')+td(x.prim?isoToBr(x.prim):'-')+td(isoToBr(x.dAp))+td(x.dias!=null?x.dias+' dia(s)':'-')+td(brl(x.val),'right','font-weight:700')+'</tr>';
+    });
+    h+='</tbody></table></div></div>';
+    // registros
+    var regs=fus.slice().sort(function(a,b){ return b.data.localeCompare(a.data) || b.ix-a.ix; });
+    h+='<div class="card"><div style="font-weight:700;margin-bottom:4px">Registros de follow-up ('+reais.length+(links.length?' + '+links.length+' links':'')+')</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">o que cada vendedor anotou · clique para abrir o orçamento</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+      +['Quando','Vendedor','Nº / Cliente','Situação hoje','O que foi registrado'].map(th).join('')+'</tr></thead><tbody>';
+    if(!regs.length) h+='<tr><td colspan="5" style="padding:18px;text-align:center;color:var(--gray)">Nenhum registro no período.</td></tr>';
+    var stl={fechado:['Fechado','#16a34a'],perdido:['Perdido','var(--red)'],pendente:['Em aberto','#b8860b'],enviado:['Enviado ao cliente','#2563eb']};
+    regs.slice(0,400).forEach(function(f){
+        var st=stl[f.o.status]||[f.o.status||'-','var(--gray)'];
+        h+='<tr style="cursor:pointer'+(f.link?';opacity:.6':'')+'" onclick="abrirModal('+f.o.id+')">'+td(escH(f.hora||isoToBr(f.data)),'left','white-space:nowrap;color:var(--gray)')+td(escH(primeiroNome(f.vend)),'left')
+          +td('<b>'+escH(f.o.num||'—')+'</b> '+escH(primeiroNome(f.o.cli||'')),'left','white-space:nowrap')+td(st[0],'left','color:'+st[1]+';font-weight:600;white-space:nowrap')+td(escH(String(f.txt).slice(0,160)),'left','max-width:460px')+'</tr>';
+    });
+    if(regs.length>400) h+='<tr><td colspan="5" style="padding:10px;color:var(--gray)">Mostrando os 400 mais recentes. Reduza o período para ver o resto.</td></tr>';
+    h+='</tbody></table></div></div>';
+    body.innerHTML=h;
+}
+
 // ═══ ALERTAS: retorno do dia e sem follow-up ═══
 function atualizarAvisoRetorno(){
     var box=document.getElementById('aviso-ret'); if(!box) return;
     if(!usuarioLogado || window._avisoRetFechado){ box.style.display='none'; return; }
-    var r=getRetornoHoje();
+    if(souGestor()){
+        // gestor não recebe lembrete de retorno (não é dele); no lugar, o resumo de follow-ups do dia
+        var hj=hoje(), fh=relfuEntradas(hj,hj,'');
+        var vs={}; fh.forEach(function(f){ vs[f.vend]=(vs[f.vend]||0)+1; });
+        var det=Object.keys(vs).sort(function(a,b){return vs[b]-vs[a];}).map(function(v){ return escH(primeiroNome(v))+' '+vs[v]; }).join(' · ');
+        document.getElementById('aviso-ret-txt').innerHTML='<b>📊 Hoje a equipe registrou '+fh.length+' follow-up(s)</b><br>'+(det||'ninguém registrou contato ainda')+' · <u><b>abrir relatório</b></u>';
+        box.onclick=function(){ go('relfu'); };
+        box.style.background='#eef2ff'; box.style.borderColor='#6366f1'; box.style.color='#312e81'; box.style.animation='none';
+        box.style.display='block';
+        return;
+    }
+    box.onclick=function(){ abrirListaAlerta('hoje'); };
+    var r=getRetornoHoje().filter(function(o){ return o.vend===usuarioLogado.nome; });
     if(!r.length){ box.style.display='none'; return; }
     var nomes=r.slice(0,6).map(function(o){ return escH(primeiroNome(o.cli||'')); }).join(', ')+(r.length>6?' e mais '+(r.length-6):'');
     document.getElementById('aviso-ret-txt').innerHTML='<b>📅 '+(souGestor()?'Equipe tem ':'Você tem ')+r.length+' retorno(s) para HOJE</b><br>'+nomes+' · <u><b>abrir relação</b></u>';
