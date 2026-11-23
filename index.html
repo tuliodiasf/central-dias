@@ -3060,19 +3060,37 @@ function go(pg) {
 }
 
 // ═══ RELATÓRIO DE FOLLOW-UP (gestor) ═══
-// follow-up válido = registro feito por um vendedor no histórico do orçamento.
-// Não contam: registros automáticos do SISTEMA e o log de "link de autorização gerado" (🔗), que aparece à parte.
+// FOLLOW-UP = contato com o cliente DEPOIS que o orçamento foi entregue, enquanto ele ainda está em aberto,
+// para fechar a venda. Todo o resto continua no histórico do orçamento, mas NÃO conta:
+//   auto  → registros do SISTEMA e o log "🔗 link de autorização gerado"
+//   envio → só "enviado / enviado hoje" (é a entrega, não o retorno)
+//   dia   → qualquer registro do mesmo dia em que o orçamento foi feito (conversa inicial, não é retorno)
+//   pos   → registros depois do dia em que o orçamento foi aprovado
 function relfuEhLink(f){ return /^\s*🔗/.test(String(f.txt||'')); }
-function relfuEntradas(de,ate,vend,incluirLinks){
+var RELFU_TIPO={fu:'Follow-up',envio:'Envio do orçamento',dia:'Mesmo dia do orçamento',auto:'Automático',pos:'Depois de fechado'};
+function relfuClasse(o,f){
+    var d=String(f.data||'').slice(0,10), t=String(f.txt||'');
+    if(!f.vend || f.vend==='SISTEMA' || relfuEhLink(f)) return 'auto';
+    // dia em que o orçamento nasceu: o menor entre a data do orçamento e a data embutida no id (o campo data às vezes é remarcado)
+    var nasc=String(o.data||'').slice(0,10), idd=(Number(o.id)>1.6e12&&Number(o.id)<2.2e12)?_dLocal(new Date(Number(o.id))):'';
+    if(idd && (!nasc || idd<nasc)) nasc=idd;
+    var soEnvio=/^\s*(or[cç]amento\s+)?envi(ado|ei|amos)(\s+(hoje|hj|ao cliente|para o cliente|pro cliente|pelo whats(app)?|no whats(app)?))*\s*[.!]*\s*$/i.test(t);
+    if(soEnvio) return 'envio';
+    if(nasc && d<=nasc) return 'dia';
+    if(o.status==='fechado' && o.aprovadoEm && d>_dLocal(new Date(o.aprovadoEm))) return 'pos';
+    return 'fu';
+}
+function relfuEntradas(de,ate,vend,todas){
     var out=[];
     (db.orcs||[]).forEach(function(o){
         if(o.deleted) return;
         (o.fus||[]).forEach(function(f,ix){
-            var v=f.vend||''; if(!v || v==='SISTEMA') return;
-            if(!incluirLinks && relfuEhLink(f)) return;
             var d=String(f.data||'').slice(0,10); if(!d || d<de || d>ate) return;
+            var v=f.vend||'';
             if(vend && v!==vend) return;
-            out.push({o:o, vend:v, data:d, txt:f.txt||'', hora:f.data_hora||'', link:relfuEhLink(f), ix:ix});
+            var c=relfuClasse(o,f);
+            if(!todas && c!=='fu') return;
+            out.push({o:o, vend:v, data:d, txt:f.txt||'', hora:f.data_hora||'', classe:c, link:c!=='fu', ix:ix});
         });
     });
     return out;
@@ -3103,11 +3121,12 @@ function relfuRender(){
     var brl=function(v){ return fmtBRL(v||0); };
     var dLoc=function(iso){ return iso?_dLocal(new Date(iso)):''; };
     var fus=relfuEntradas(de,ate,fV,true);
-    var reais=fus.filter(function(f){return !f.link;}), links=fus.filter(function(f){return f.link;});
+    var reais=fus.filter(function(f){return f.classe==='fu';});
+    var links=fus.filter(function(f){return f.classe==='auto' && f.vend && f.vend!=='SISTEMA';});
     // fechamentos do período (pela data de aprovação) e se tiveram follow-up antes de fechar
     var fech=(db.orcs||[]).filter(function(o){ var d=dLoc(o.aprovadoEm); return !o.deleted && o.status==='fechado' && d && d>=de && d<=ate && (!fV || o.vend===fV); }).map(function(o){
         var dAp=dLoc(o.aprovadoEm);
-        var antes=(o.fus||[]).filter(function(f){ return f.vend && f.vend!=='SISTEMA' && !relfuEhLink(f) && String(f.data||'').slice(0,10)<=dAp; });
+        var antes=(o.fus||[]).filter(function(f){ return relfuClasse(o,f)==='fu' && String(f.data||'').slice(0,10)<=dAp; });
         var prim=antes.length?antes.map(function(f){return String(f.data).slice(0,10);}).sort()[0]:'';
         var dias=prim?Math.round((new Date(dAp+'T12:00')-new Date(prim+'T12:00'))/86400000):null;
         return {o:o, dAp:dAp, nFu:antes.length, prim:prim, dias:dias, val:Number(o.valorAprovado!=null?o.valorAprovado:o.val)||0};
@@ -3135,7 +3154,7 @@ function relfuRender(){
     var h='';
     var card=function(tit,val,sub,cor){ return '<div class="card" style="padding:14px;min-width:0'+(cor?';border-left:4px solid '+cor:'')+'"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">'+tit+'</div><div style="font-size:26px;font-weight:900;white-space:nowrap">'+val+'</div><div style="font-size:12.5px;color:var(--gray)">'+sub+'</div></div>'; };
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px">';
-    h+=card('Follow-ups registrados',reais.length,(du?(reais.length/du).toFixed(1).replace('.',',')+' por dia útil':'')+(links.length?' · +'+links.length+' links enviados':''));
+    h+=card('Follow-ups feitos',reais.length,(du?(reais.length/du).toFixed(1).replace('.',',')+' por dia útil · ':'')+'não contam envio, links e registros automáticos');
     h+=card('Orçamentos trabalhados',trabArr.length,'receberam ao menos 1 contato');
     h+=card('Fecharam depois do follow-up',trabFech.length,pct(trabFech.length,trabArr.length)+' dos trabalhados (até hoje)','#16a34a');
     h+=card('Fechamentos no período',fech.length,fechFu.length+' tiveram follow-up antes · '+pct(fechFu.length,fech.length));
@@ -3143,7 +3162,7 @@ function relfuRender(){
     h+='</div>';
     // tabela por vendedor
     h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:10px">Por vendedor</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
-      +['Vendedor','Follow-ups','Por dia útil','Dias sem registro','Orç. trabalhados','Já fecharam','Conversão','Fechou no período','Com follow-up antes','Valor c/ follow-up','Links enviados'].map(th).join('')+'</tr></thead><tbody>';
+      +['Vendedor','Follow-ups','Por dia útil','Dias sem follow-up','Orç. trabalhados','Já fecharam','Conversão','Fechou no período','Com follow-up antes','Valor c/ follow-up','Links enviados'].map(th).join('')+'</tr></thead><tbody>';
     if(!vArr.length) h+='<tr><td colspan="11" style="padding:18px;text-align:center;color:var(--gray)">Nenhum registro no período.</td></tr>';
     vArr.forEach(function(p){
         var nd=Object.keys(p.dias).length, sem=Math.max(0,du-nd);
@@ -3152,7 +3171,7 @@ function relfuRender(){
           +td(sem,'right',sem>0?'color:var(--red);font-weight:700':'color:#16a34a')+td(p.trab)+td(p.trabFech,'right','color:#16a34a;font-weight:700')+td(pct(p.trabFech,p.trab))
           +td(p.fech)+td(p.fechFu+' <span style="color:var(--gray)">('+pct(p.fechFu,p.fech)+')</span>')+td(brl(p.valFu),'right','font-weight:700')+td(p.links||'-')+'</tr>';
     });
-    h+='</tbody></table></div><div style="font-size:12px;color:var(--gray);margin-top:8px">Dias sem registro: dias úteis (seg a sáb) do período em que o vendedor não registrou nenhum follow-up. Já fecharam: dos orçamentos que ele contatou no período, quantos estão fechados hoje.</div></div>';
+    h+='</tbody></table></div><div style="font-size:12px;color:var(--gray);margin-top:8px">Dias sem follow-up: dias úteis (seg a sáb) do período em que o vendedor não fez nenhum follow-up. Já fecharam: dos orçamentos que ele contatou no período, quantos estão fechados hoje.</div></div>';
     // matriz dia a dia
     var dias=[]; for(var d2=new Date(ate+'T12:00'); _dLocal(d2)>=de && dias.length<62; d2.setDate(d2.getDate()-1)) dias.push(_dLocal(d2));
     var vCols=vArr.filter(function(p){return p.fu||p.links;}).map(function(p){return p.vend;});
@@ -3180,17 +3199,23 @@ function relfuRender(){
     });
     h+='</tbody></table></div></div>';
     // registros
-    var regs=fus.slice().sort(function(a,b){ return b.data.localeCompare(a.data) || b.ix-a.ix; });
-    h+='<div class="card"><div style="font-weight:700;margin-bottom:4px">Registros de follow-up ('+reais.length+(links.length?' + '+links.length+' links':'')+')</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">o que cada vendedor anotou · clique para abrir o orçamento</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
-      +['Quando','Vendedor','Nº / Cliente','Situação hoje','O que foi registrado'].map(th).join('')+'</tr></thead><tbody>';
-    if(!regs.length) h+='<tr><td colspan="5" style="padding:18px;text-align:center;color:var(--gray)">Nenhum registro no período.</td></tr>';
+    var verTudo=!!window._relfuVerTudo;
+    var outros=fus.length-reais.length;
+    var regs=(verTudo?fus:reais).slice().sort(function(a,b){ return b.data.localeCompare(a.data) || b.ix-a.ix; });
+    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><div style="font-weight:700;margin-bottom:4px">'+(verTudo?'Histórico completo ('+fus.length+')':'Follow-ups feitos ('+reais.length+')')+'</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">'+(verTudo?'tudo que foi registrado nos orçamentos · só a linha marcada Follow-up entra na conta':'contatos para fechar orçamento em aberto · clique para abrir o orçamento')+'</div></div>'
+      +(outros?'<label style="font-size:12.5px;color:var(--gray);display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap"><input type="checkbox" style="width:auto" '+(verTudo?'checked':'')+' onchange="window._relfuVerTudo=this.checked;relfuRender()"> mostrar também envios, links e automáticos ('+outros+')</label>':'')+'</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+      +['Quando','Vendedor','Nº / Cliente','Tipo','Situação hoje','O que foi registrado'].map(th).join('')+'</tr></thead><tbody>';
+    if(!regs.length) h+='<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--gray)">Nenhum follow-up no período.</td></tr>';
     var stl={fechado:['Fechado','#16a34a'],perdido:['Perdido','var(--red)'],pendente:['Em aberto','#b8860b'],enviado:['Enviado ao cliente','#2563eb']};
     regs.slice(0,400).forEach(function(f){
         var st=stl[f.o.status]||[f.o.status||'-','var(--gray)'];
-        h+='<tr style="cursor:pointer'+(f.link?';opacity:.6':'')+'" onclick="abrirModal('+f.o.id+')">'+td(escH(f.hora||isoToBr(f.data)),'left','white-space:nowrap;color:var(--gray)')+td(escH(primeiroNome(f.vend)),'left')
-          +td('<b>'+escH(f.o.num||'—')+'</b> '+escH(primeiroNome(f.o.cli||'')),'left','white-space:nowrap')+td(st[0],'left','color:'+st[1]+';font-weight:600;white-space:nowrap')+td(escH(String(f.txt).slice(0,160)),'left','max-width:460px')+'</tr>';
+        h+='<tr style="cursor:pointer'+(f.link?';opacity:.6':'')+'" onclick="abrirModal('+f.o.id+')">'+td(escH(f.hora||isoToBr(f.data)),'left','white-space:nowrap;color:var(--gray)')+td(escH(primeiroNome(f.vend||'SISTEMA')),'left')
+          +td('<b>'+escH(f.o.num||'—')+'</b> '+escH(primeiroNome(f.o.cli||'')),'left','white-space:nowrap')
+          +td(f.classe==='fu'?'<span style="color:#16a34a;font-weight:700">Follow-up</span>':'<span style="color:var(--gray)">'+RELFU_TIPO[f.classe]+'</span>','left','white-space:nowrap')
+          +td(st[0],'left','color:'+st[1]+';font-weight:600;white-space:nowrap')+td(escH(String(f.txt).slice(0,160)),'left','max-width:460px')+'</tr>';
     });
-    if(regs.length>400) h+='<tr><td colspan="5" style="padding:10px;color:var(--gray)">Mostrando os 400 mais recentes. Reduza o período para ver o resto.</td></tr>';
+    if(regs.length>400) h+='<tr><td colspan="6" style="padding:10px;color:var(--gray)">Mostrando os 400 mais recentes. Reduza o período para ver o resto.</td></tr>';
     h+='</tbody></table></div></div>';
     body.innerHTML=h;
 }
