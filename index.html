@@ -3722,7 +3722,10 @@ function updateAprovado(){
     // aplica o desconto do orçamento, rateado proporcionalmente sobre os itens marcados
     var oAtual=db.orcs.find(x=>x.id==cur);
     var desc=Number(oAtual?.desconto)||0;
-    if(desc>0 && subAll>0){ s=Math.round((s - desc*(s/subAll))*100)/100; }
+    // o desconto foi dado sobre os itens que já estavam aprovados no orçamento (os riscados nunca entraram nele);
+    // só reduz proporcionalmente se desmarcarem algum desses itens aqui
+    var baseDesc=((oAtual&&oAtual.itens)||[]).filter(function(i){return i.aprovado!==false;}).reduce(function(a,i){return a+(Number(i.total)||0);},0)||subAll;
+    if(desc>0 && baseDesc>0){ s=Math.round((s - Math.min(desc, desc*(s/baseDesc)))*100)/100; }
     var el=document.getElementById('m-aprovado'); if(el) el.textContent=R$(s);
     var b=document.getElementById('m-toggle-all'); if(b) b.textContent=algum?'Desmarcar todos':'Marcar todos';
 }
@@ -3842,6 +3845,8 @@ async function aprovarOrcamento(){
     if(!os){ alert('Para aprovar, preencha o Nº da O.S. do Oficina Inteligente.'); return; }
     var chks=[...document.querySelectorAll('.m-item-chk')];
     var todos=[], reprovados=[], valAp=0, valRep=0;
+    // base do desconto = itens que já estavam aprovados quando o desconto foi dado (riscados ficam de fora)
+    var baseDesc=(o.itens||[]).filter(function(i){return i.aprovado!==false;}).reduce(function(a,i){return a+(Number(i.total)||0);},0);
     if(chks.length){
         (o.itens||[]).forEach(function(it,ix){
             var c=chks.find(x=>x.getAttribute('data-ix')==ix);
@@ -3856,8 +3861,8 @@ async function aprovarOrcamento(){
         o.produtosTotal=todos.filter(function(i){return i.tipo==='produto'&&i.aprovado!==false;}).reduce(function(s,i){return s+(i.total||0);},0);
         o.servicosTotal=todos.filter(function(i){return i.tipo==='servico'&&i.aprovado!==false;}).reduce(function(s,i){return s+(i.total||0);},0);
         // desconto do orçamento rateado sobre a parte aprovada (antes o desconto sumia ao aprovar)
-        var descOrig=Number(o.desconto)||0, subAll=valAp+valRep;
-        var descAp=(descOrig>0&&subAll>0)?Math.round(descOrig*(valAp/subAll)*100)/100:0;
+        var descOrig=Number(o.desconto)||0, base=baseDesc||(valAp+valRep);
+        var descAp=(descOrig>0&&base>0)?Math.min(descOrig, Math.round(descOrig*(valAp/base)*100)/100):0;
         o.desconto=descAp;
         valAp=Math.round((valAp-descAp)*100)/100;
         o.val=valAp;
