@@ -4075,7 +4075,8 @@ async function gerarLinkAutorizacao(){
     });
     if(!_itensLink.length){ alert('Nenhum item aprovado. Marque pelo menos um item antes de gerar o link.'); return; }
     var _subLink=_itensLink.reduce(function(t,i){ return t+(Number(i.total)||0); },0);
-    var _valLink=_mudouModal ? Math.round((_subLink-(Number(o.desconto)||0))*100)/100 : o.val;
+    var _descLink=_mudouModal ? descontoEfetivo(o, _subLink) : (Number(o.desconto)||0);
+    var _valLink=_mudouModal ? Math.round((_subLink-_descLink)*100)/100 : o.val;
     if(o.status==='fechado'){
         var vAp=R$(o.valorAprovado!=null?o.valorAprovado:o.val), vAtual=R$(_valLink);
         if(!confirm('Este orçamento já está FECHADO.\n\nValor aprovado hoje: '+vAp+'\nValor atual do orçamento: '+vAtual+'\n\nGerar NOVO link para o cliente autorizar '+vAtual+'?\n\nQuando ele assinar, a nova assinatura SUBSTITUI a anterior e o valor aprovado passa a ser '+vAtual+'. Os links antigos ainda pendentes serão cancelados.')) return;
@@ -4083,7 +4084,7 @@ async function gerarLinkAutorizacao(){
     let dias = parseInt(prompt('Validade do link em dias:','7'))||0;
     if(dias<=0) return;
     const token = (crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):String(Date.now())+Math.random().toString(36).slice(2)) + Math.random().toString(36).slice(2,10);
-    const snapshot = { num:o.num, cli:o.cli, placa:o.placa, vend:o.vend, data:o.data, itens:_itensLink, desconto:o.desconto||0, val:_valLink, cond_pgto:o.condPgto||'', obs:o.obs||'' };
+    const snapshot = { num:o.num, cli:o.cli, placa:o.placa, vend:o.vend, data:o.data, itens:_itensLink, desconto:_descLink||0, val:_valLink, cond_pgto:o.condPgto||'', obs:o.obs||'' };
     const hash = await sha256Hex(JSON.stringify(snapshot));
     const expira = new Date(Date.now()+dias*24*60*60*1000).toISOString();
     // invalida links antigos ainda pendentes: só pode valer UMA proposta por vez
@@ -4198,6 +4199,12 @@ async function aprovarOrcamento(){
     setTimeout(function(){ if(confirm('Gerar o Relatório de Serviço para o mecânico (uso interno, com valores)?')){ relatorioMecanico(oid); } }, 300);
 }
 
+function descontoEfetivo(o, subAtual){
+    var desc=Number(o.desconto)||0; if(desc<=0) return 0;
+    var base=(o.itens||[]).filter(function(i){return i.aprovado!==false;}).reduce(function(a,i){return a+(Number(i.total)||0);},0);
+    if(!base) return Math.min(desc, subAtual);
+    return Math.min(desc, Math.round(desc*(subAtual/base)*100)/100);
+}
 function relatorioMecanico(id){
     const o = db.orcs.find(x => x.id==(id||cur)); if(!o){ return; }
     const base = location.href.replace(/[^/]*$/, '');
@@ -4207,6 +4214,7 @@ function relatorioMecanico(id){
     const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
     const somaArr = arr => arr.reduce((s,it) => s + (Number(it.total)||0), 0);
     const totServ = somaArr(serv), totProd = somaArr(prod), totGeral = totServ + totProd;
+    const descRel = descontoEfetivo(o, totGeral), totFinal = Math.max(0, totGeral - descRel);
     const linhas = arr => arr.length ? arr.map(function(it){ var q=it.qtd||1; var un=(Number(it.total)||0)/q;
                                         return '<tr><td>'+esc(it.descricao)+'</td><td class="q">'+q+'</td><td class="v">'+R$(un)+'</td><td class="v">'+R$(Number(it.total)||0)+'</td><td class="c"></td></tr>'; }).join('')
                                      : '<tr><td colspan="5" class="vazio">— sem itens detalhados —</td></tr>';
@@ -4230,6 +4238,8 @@ function relatorioMecanico(id){
       +'.totgeral{margin-top:12px;display:flex;justify-content:flex-end;align-items:baseline;gap:10px;border-top:2px solid #C8102E;padding-top:7px}'
       +'.totgeral .lb{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#555}.totgeral .vl{font-size:15px;font-weight:900;color:#111}'
       +'.vazio{color:#999;font-style:italic}'
+      +'.res{margin-top:12px;margin-left:auto;width:300px;font-size:12px;border-top:2px solid #C8102E;padding-top:6px}.res .rl{display:flex;justify-content:space-between;padding:3px 0}.res .desc span:last-child{color:#C8102E;font-weight:700}.res .tot{border-top:1.5px solid #333;margin-top:4px;padding-top:6px;font-size:15px;font-weight:900}'
+      +'.pg{margin-top:9px;font-size:11.5px;color:#444;text-align:right}'
       +'.obs{margin-top:11px;font-size:11px;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:8px 10px;white-space:pre-wrap}'
       +'.ass{margin-top:28px;display:flex;gap:40px}.ass .col{flex:1;text-align:center;border-top:1px solid #999;padding-top:5px;font-size:11px;color:#555}'
       +'.rod{margin-top:16px;font-size:9.5px;color:#999;text-align:center}'
@@ -4248,7 +4258,10 @@ function relatorioMecanico(id){
       +'</div>'
       +'<h2>Serviços a executar</h2><table><thead><tr><th>Descrição</th><th class="q">Qtd</th><th class="v">Valor un.</th><th class="v">Total</th><th class="c">OK</th></tr></thead><tbody>'+linhas(serv)+(serv.length?rodape('Total serviços',totServ):'')+'</tbody></table>'
       +'<h2>Peças a aplicar</h2><table><thead><tr><th>Descrição</th><th class="q">Qtd</th><th class="v">Valor un.</th><th class="v">Total</th><th class="c">OK</th></tr></thead><tbody>'+linhas(prod)+(prod.length?rodape('Total peças',totProd):'')+'</tbody></table>'
-      +'<div class="totgeral"><span class="lb">Total geral</span><span class="vl">'+R$(totGeral)+'</span></div>'
+      +(descRel>0
+        ? '<div class="res"><div class="rl"><span>Subtotal</span><span>'+R$(totGeral)+'</span></div><div class="rl desc"><span>Desconto</span><span>- '+R$(descRel)+'</span></div><div class="rl tot"><span>Total do orçamento</span><span>'+R$(totFinal)+'</span></div></div>'
+        : '<div class="totgeral"><span class="lb">Total geral</span><span class="vl">'+R$(totGeral)+'</span></div>')
+      +(o.condPgto?'<div class="pg">Condição de pagamento: '+esc(o.condPgto)+'</div>':'')
       +(o.obs?'<div class="obs"><b>Observações:</b> '+esc(o.obs)+'</div>':'')
       +'<div class="ass"><div class="col">Mecânico</div><div class="col">Conferência / Qualidade</div></div>'
       +'<div class="rod">Documento interno · uso exclusivo da oficina · gerado pela Central Dias</div>'
@@ -4284,7 +4297,7 @@ async function imprimirOrcamento(id){
     const totProd = prod.filter(it=>it._ok).reduce((s,i)=>s+(i.total||0),0);
     const totServ = serv.filter(it=>it._ok).reduce((s,i)=>s+(i.total||0),0);
     const sub = totProd+totServ;
-    const desc = Number(o.desconto)||0;
+    const desc = descontoEfetivo(o, sub);
     const total = Math.max(0, sub-desc);
     const dataBR = o.data ? o.data.split('-').reverse().join('/') : '';
     const linhas = arr => arr.length ? arr.map(function(it){ var q=it.qtd||1; var un=it.total/q; var trSt=it._ok?'':' style="text-decoration:line-through;color:#999"'; var tag=it._ok?'':' <span style="font-size:8.5px;color:#C8102E;font-weight:800;text-decoration:none">NÃO APROVADO</span>'; return '<tr'+trSt+'><td>'+esc(it.descricao)+tag+'</td><td class="q">'+q+'</td><td class="v">'+R$(un)+'</td><td class="v">'+R$(it.total)+'</td></tr>'; }).join('')
