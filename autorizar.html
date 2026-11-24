@@ -64,9 +64,9 @@
     </div>
 
     <div class="card">
-      <div class="sec">Produtos e peças</div>
+      <div class="sec" id="sec-prod">Produtos e peças</div>
       <div id="c-prod"></div>
-      <div class="sec" style="margin-top:14px">Serviços</div>
+      <div class="sec" id="sec-serv" style="margin-top:14px">Serviços</div>
       <div id="c-serv"></div>
       <div style="margin-top:14px">
         <div class="lin"><span>Subtotal</span><span id="c-sub"></span></div>
@@ -112,6 +112,28 @@ const token = new URLSearchParams(location.search).get('t') || '';
 const brl = v => 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+// ═══ MODELO DO DOCUMENTO DO CLIENTE ═══
+// "unico" = peças e serviços numa lista só (cada serviço logo depois da peça a que se refere) e, no final, só o total.
+// "detalhado" = peças e serviços separados, com subtotal de cada um (para o cliente que pedir).
+// Cada linha mostra o seu valor nos dois modelos: nada é ocultado.
+function orcMisturar(itens){
+  var norm=function(t){ return String(t||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,''); };
+  var STOP={SERVICO:1,SERVICOS:1,SUBSTITUICAO:1,TROCA:1,REPARO:1,REMOCAO:1,JOGO:1,DIAS:1,PARA:1,TESTE:1,LIMPEZA:1,INSTALACAO:1,REVISAO:1,VERIFICACAO:1,AVALIACAO:1};
+  var pal=function(t){ return norm(t).split(/[^A-Z0-9]+/).filter(function(w){ return w.length>=4 && !STOP[w]; }).map(function(w){ return w.replace(/(ES|S)$/,'').slice(0,6); }); };
+  var prods=[], servs=[]; (itens||[]).forEach(function(it){ (it.tipo==='servico'?servs:prods).push(it); });
+  if(!prods.length || !servs.length) return prods.concat(servs);
+  var pw=prods.map(function(p){ return pal(p.descricao); }), anex=prods.map(function(){ return []; }), soltos=[];
+  servs.forEach(function(s){
+    var sw=pal(s.descricao), best=-1, bs=0;
+    pw.forEach(function(w,i){ var n=sw.filter(function(x){ return w.indexOf(x)>=0; }).length; if(n>bs){ bs=n; best=i; } });
+    if(best>=0) anex[best].push(s); else soltos.push(s);
+  });
+  // grupos = peça + serviços dela; serviços sem peça entram ENTRE os grupos, espalhados
+  var grupos=prods.map(function(p,i){ return [p].concat(anex[i]); });
+  var passo=(grupos.length+1)/(soltos.length+1);
+  for(var k=soltos.length-1;k>=0;k--){ grupos.splice(Math.min(grupos.length, Math.max(1, Math.round(passo*(k+1)))),0,[soltos[k]]); }
+  return [].concat.apply([], grupos);
+}
 function mascaraCpf(el){
   var v=el.value.replace(/\D/g,'').slice(0,11);
   el.value = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/,'.$1-$2');
@@ -148,8 +170,16 @@ async function carregar(){
     var linha=function(it){ return '<div class="item"><div class="d">'+esc(it.descricao)+'<div class="q">'+(it.qtd||1)+'x · '+brl((it.total||0)/(it.qtd||1))+' un.</div></div><b>'+brl(it.total)+'</b></div>'; };
     var prod=itens.filter(function(i){return i.tipo!=='servico';}).map(linha).join('');
     var serv=itens.filter(function(i){return i.tipo==='servico';}).map(linha).join('');
-    document.getElementById('c-prod').innerHTML=prod||'<div class="item"><div class="d" style="color:#999">— sem peças —</div></div>';
-    document.getElementById('c-serv').innerHTML=serv||'<div class="item"><div class="d" style="color:#999">— sem serviços —</div></div>';
+    if(s.modelo==='unico'){
+      document.getElementById('sec-prod').textContent='Peças e serviços';
+      document.getElementById('c-prod').innerHTML=orcMisturar(itens).map(linha).join('');
+      document.getElementById('sec-serv').style.display='none'; document.getElementById('c-serv').style.display='none';
+      if(!(Number(s.desconto)>0)) document.getElementById('c-sub').parentNode.style.display='none';
+      else document.getElementById('c-sub').previousElementSibling.textContent='Valor do orçamento';
+    } else {
+      document.getElementById('c-prod').innerHTML=prod||'<div class="item"><div class="d" style="color:#999">— sem peças —</div></div>';
+      document.getElementById('c-serv').innerHTML=serv||'<div class="item"><div class="d" style="color:#999">— sem serviços —</div></div>';
+    }
     var sub=itens.reduce(function(t,i){return t+(Number(i.total)||0);},0);
     var desc=Number(s.desconto)||0;
     document.getElementById('c-sub').textContent=brl(sub);

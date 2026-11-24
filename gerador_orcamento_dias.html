@@ -369,7 +369,9 @@ function abrirCotacaoPecas(){
   if(!window.EDIT_ID){ alert('Salve o orçamento primeiro (💾 Salvar orçamento). Depois abra a Cotação de peças.'); return; }
   window.open('cotacao_pecas.html?id='+window.EDIT_ID, '_blank');
 }
-function imprimir(){
+function imprimir(modelo){
+  if(!modelo){ return escolherModelo('Gerar orçamento / PDF', function(m){ imprimir(m); }); }
+  if(modelo==='unico'){ return imprimirUnico(); }
   var n=(document.getElementById('c-nome').value||'').trim(), num=(document.getElementById('o-num').value||'').trim();
   // padrão: ORC_<número>_<primeiro nome + primeiro sobrenome>
   var tks=n.toUpperCase().split(/\s+/).filter(Boolean), part=['DE','DA','DO','DAS','DOS','E'];
@@ -397,8 +399,94 @@ function imprimir(){
   }, 400);
 }
 
+// ═══ MODELO DO DOCUMENTO DO CLIENTE ═══
+// "unico" = peças e serviços numa lista só (cada serviço logo depois da peça a que se refere) e, no final, só o total.
+// "detalhado" = peças e serviços separados, com subtotal de cada um (para o cliente que pedir).
+// Cada linha mostra o seu valor nos dois modelos: nada é ocultado.
+function orcMisturar(itens){
+  var norm=function(t){ return String(t||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,''); };
+  var STOP={SERVICO:1,SERVICOS:1,SUBSTITUICAO:1,TROCA:1,REPARO:1,REMOCAO:1,JOGO:1,DIAS:1,PARA:1,TESTE:1,LIMPEZA:1,INSTALACAO:1,REVISAO:1,VERIFICACAO:1,AVALIACAO:1};
+  var pal=function(t){ return norm(t).split(/[^A-Z0-9]+/).filter(function(w){ return w.length>=4 && !STOP[w]; }).map(function(w){ return w.replace(/(ES|S)$/,'').slice(0,6); }); };
+  var prods=[], servs=[]; (itens||[]).forEach(function(it){ (it.tipo==='servico'?servs:prods).push(it); });
+  if(!prods.length || !servs.length) return prods.concat(servs);
+  var pw=prods.map(function(p){ return pal(p.descricao); }), anex=prods.map(function(){ return []; }), soltos=[];
+  servs.forEach(function(s){
+    var sw=pal(s.descricao), best=-1, bs=0;
+    pw.forEach(function(w,i){ var n=sw.filter(function(x){ return w.indexOf(x)>=0; }).length; if(n>bs){ bs=n; best=i; } });
+    if(best>=0) anex[best].push(s); else soltos.push(s);
+  });
+  // grupos = peça + serviços dela; serviços sem peça entram ENTRE os grupos, espalhados
+  var grupos=prods.map(function(p,i){ return [p].concat(anex[i]); });
+  var passo=(grupos.length+1)/(soltos.length+1);
+  for(var k=soltos.length-1;k>=0;k--){ grupos.splice(Math.min(grupos.length, Math.max(1, Math.round(passo*(k+1)))),0,[soltos[k]]); }
+  return [].concat.apply([], grupos);
+}
+function escolherModelo(titulo, cb){
+  var ant=document.getElementById('modelo-doc-ov'); if(ant) ant.remove();
+  var pad='unico'; try{ pad=localStorage.getItem('orcModelo')||'unico'; }catch(e){}
+  var ov=document.createElement('div'); ov.id='modelo-doc-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit';
+  var bt=function(k,t,sub){ return '<button data-m="'+k+'" style="display:block;width:100%;text-align:left;margin-top:10px;padding:14px 16px;border-radius:10px;cursor:pointer;background:#fff;border:2px solid '+(pad===k?'#C8102E':'#ddd')+'"><b style="font-size:15px;color:#111">'+t+(pad===k?' <span style="font-size:11px;color:#C8102E">(último usado)</span>':'')+'</b><br><span style="font-size:12.5px;color:#666">'+sub+'</span></button>'; };
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
+    +'<div style="font-weight:800;font-size:16px;color:#111">'+titulo+'</div><div style="font-size:12.5px;color:#666;margin-top:2px">Escolha como o cliente vai ver o orçamento</div>'
+    +bt('unico','Lista única','Peças e serviços juntos numa lista, cada um com seu valor. No final, só o total e o desconto.')
+    +bt('detalhado','Detalhado','Peças e serviços separados, com subtotal de cada um. Use quando o cliente pedir.')
+    +'<button data-m="" style="margin-top:12px;background:none;border:0;color:#666;cursor:pointer;font-size:13px">Cancelar</button></div>';
+  ov.addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b){ if(e.target===ov) ov.remove(); return; }
+    var m=b.getAttribute('data-m'); ov.remove(); if(!m) return;
+    try{ localStorage.setItem('orcModelo', m); }catch(e2){}
+    cb(m);
+  });
+  document.body.appendChild(ov);
+}
+
+function imprimirUnico(){
+  var esc=function(t){ return String(t==null?'':t).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); };
+  var v=function(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; };
+  var todos=coletaItens('produtos','produto').concat(coletaItens('servicos','servico'));
+  if(!todos.length){ alert('Lance ao menos um item.'); return; }
+  var ok=todos.filter(function(i){return i.aprovado!==false;}), fora=todos.filter(function(i){return i.aprovado===false;});
+  var sub=ok.reduce(function(t,i){return t+i.total;},0);
+  var desc=parseFloat(v('o-desc'))||0; if(desc>sub) desc=sub; var total=sub-desc;
+  var num=v('o-num'), nome=v('c-nome');
+  var tks=nome.toUpperCase().split(/\s+/).filter(Boolean), part=['DE','DA','DO','DAS','DOS','E'], pn=tks[0]||'', ps=''; for(var i2=1;i2<tks.length;i2++){ if(part.indexOf(tks[i2])<0){ ps=tks[i2]; break; } }
+  var nomeArq='ORC_'+num+(pn?'_'+pn+(ps?' '+ps:''):'');
+  var dataBR=v('o-data')?v('o-data').split('-').reverse().join('/'):'';
+  var condSel=document.getElementById('o-cond'), cond=condSel&&condSel.value?(condSel.selectedOptions[0].text+' · '+(document.getElementById('p-parc').textContent||'')):'';
+  var linha=function(it){ var r=it.aprovado===false; return '<tr'+(r?' style="text-decoration:line-through;color:#999"':'')+'><td>'+esc(it.descricao)+(r?' <span style="font-size:8.5px;color:#C8102E;font-weight:800">NÃO APROVADO</span>':'')+'</td><td class="q">'+(it.qtd||1)+'</td><td class="v">'+brl(it.unit)+'</td><td class="v">'+brl(it.total)+'</td></tr>'; };
+  var info=[['Nº do orçamento',num],['Data',dataBR],['Cliente',nome],['Telefone',v('c-tel')],['Placa',v('c-placa').toUpperCase()],['Veículo',v('c-veic')],['Técnico responsável',v('o-mec')],['Validade',v('c-validade')?v('c-validade').split('-').reverse().join('/'):'']]
+    .filter(function(x){return x[1];}).map(function(x){ return '<div><div class="l">'+x[0]+'</div><b>'+esc(x[1])+'</b></div>'; }).join('');
+  var base=location.href.replace(/[^/]*$/,'');
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>'+esc(nomeArq)+'</title><style>@page{size:A4;margin:9mm}'
+    +'*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px 22px;font-size:11px}'
+    +'.top{display:flex;align-items:center;gap:12px;border-bottom:2.5px solid #C8102E;padding-bottom:9px}.top img{height:38px}.top .t1{font-size:16px;font-weight:800;letter-spacing:.5px}.top .t2{font-size:10px;color:#555}'
+    +'.tag{margin-left:auto;background:#C8102E;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:6px}'
+    +'.info{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin:12px 0 6px;font-size:12px}.info .l{color:#666;font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}'
+    +'h2{font-size:11.5px;margin:13px 0 4px;color:#C8102E;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;padding-bottom:3px}'
+    +'table{width:100%;border-collapse:collapse;font-size:11.5px}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #e5e5e5}th{background:#f4f4f4;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#444}'
+    +'th.q,td.q{width:46px;text-align:center}th.v,td.v{width:96px;text-align:right}'
+    +'.res{margin-top:14px;margin-left:auto;width:280px;font-size:12px}.res .rl{display:flex;justify-content:space-between;padding:3px 0}.res .tot{border-top:1.5px solid #333;margin-top:5px;padding-top:6px;font-size:15px;font-weight:900}'
+    +'.pg{margin-top:10px;background:#FBE7EA;border:1px solid #C8102E;border-radius:8px;padding:9px 12px;font-size:12px;color:#9E0C22;font-weight:700}'
+    +'.obs{margin-top:11px;font-size:11px;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:8px 10px;white-space:pre-wrap}'
+    +'.ass{margin-top:30px;display:flex;gap:40px}.ass .col{flex:1;text-align:center;border-top:1px solid #999;padding-top:5px;font-size:11px;color:#555}.rod{margin-top:16px;font-size:9.5px;color:#999;text-align:center}'
+    +'@media print{body{padding:0}.tag,.pg{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
+    +'<div class="top"><img src="'+base+'logo.png" onerror="this.style.display=\'none\'"><div><div class="t1">DIAS CENTRO AUTOMOTIVO</div><div class="t2">Av. João Mendes, 540 · Uberlândia/MG</div></div><div class="tag">ORÇAMENTO</div></div>'
+    +'<div class="info">'+info+'</div>'
+    +'<h2>Peças e serviços</h2><table><thead><tr><th>Descrição</th><th class="q">Qtd</th><th class="v">Vlr. un.</th><th class="v">Total</th></tr></thead><tbody>'+orcMisturar(ok).concat(fora).map(linha).join('')+'</tbody></table>'
+    +'<div class="res">'+(desc>0?'<div class="rl"><span>Valor do orçamento</span><span>'+brl(sub)+'</span></div><div class="rl"><span>Desconto</span><span>- '+brl(desc)+'</span></div>':'')+'<div class="rl tot"><span>Total</span><span>'+brl(total)+'</span></div></div>'
+    +(cond?'<div class="pg">Condição de pagamento: '+esc(cond)+'</div>':'')
+    +(v('c-obs')?'<div class="obs"><b>Observações:</b> '+esc(v('c-obs'))+'</div>':'')
+    +'<div class="ass"><div class="col">'+esc(v('o-vend'))+'<br><span style="font-size:9.5px">Dias Centro Automotivo</span></div><div class="col">Autorização do cliente</div></div>'
+    +'<div class="rod">Orçamento sujeito a alteração após avaliação</div>'
+    +'<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script></body></html>';
+  var w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o PDF.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
 // ── LINK DE AUTORIZAÇÃO DIGITAL (cliente autoriza pelo celular) ──
-async function gerarLinkAut(){
+async function gerarLinkAut(modelo){
+  if(!modelo){ return escolherModelo('Link para o cliente autorizar', function(m){ gerarLinkAut(m); }); }
   if(!supa){ alert('Sem conexão com o banco.'); return; }
   if(!window.EDIT_ID){ alert('Salve o orçamento primeiro (💾 Salvar orçamento). Depois gere o link.'); return; }
   var dias=parseInt(prompt('Validade do link em dias:','7'))||0;
@@ -410,7 +498,7 @@ async function gerarLinkAut(){
   var desc=parseFloat(document.getElementById('o-desc').value)||0;
   var snapshot={ num:num, cli:nome, placa:(document.getElementById('c-placa').value||'').trim().toUpperCase(),
     vend:document.getElementById('o-vend').value||'', data:document.getElementById('o-data').value||'',
-    itens:itens, desconto:desc, val:(tp+ts)-desc,
+    itens:itens, desconto:desc, val:(tp+ts)-desc, modelo:modelo,
     cond_pgto:(document.getElementById('o-cond').selectedOptions[0].text+' · '+document.getElementById('p-parc').textContent),
     obs:(document.getElementById('c-obs').value||'').trim() };
   var hash='';
