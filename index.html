@@ -880,6 +880,10 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
     </div>
     <div id="dash-alertas"></div>
     <div class="mets" id="mets"></div>
+    <div class="card" style="margin-bottom:16px" id="dash-termo-card">
+        <div class="ctitle" style="margin-bottom:4px">Termômetro de conversão</div>
+        <div id="dash-termo"></div>
+    </div>
     <div class="card" style="margin-bottom:16px">
         <div class="ctitle">Funil de Conversão</div>
         <div class="funnel" id="funnel"></div>
@@ -1101,18 +1105,17 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 <!-- ── CARTEIRA ABERTA ── -->
 <div id="pg-carteira" class="page">
     <div class="ph">
-        <div><div class="ptitle">Carteira aberta</div><div class="psub" id="cart-sub">todo orçamento em aberto precisa de follow-up com o que foi combinado</div></div>
+        <div><div class="ptitle">Carteira aberta</div><div class="psub" id="cart-sub">orçamentos em aberto e quem precisa de retorno</div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select id="cart-vend" onchange="renderCarteira()" style="width:auto;padding:8px 12px;font-size:13px">
-                <option value="">Todos os vendedores</option>
+            <select id="cart-per" onchange="cartPeriodo()" style="width:auto;padding:8px 12px;font-size:13px" title="Data em que o orçamento foi feito">
+                <option value="todos">Feitos em qualquer data</option><option value="hoje">Feitos hoje</option><option value="ontem">Feitos ontem</option>
+                <option value="semana">Feitos nesta semana</option><option value="7">Últimos 7 dias</option><option value="mes" selected>Feitos neste mês</option>
+                <option value="mesant">Feitos no mês passado</option><option value="antes">Antes deste mês</option><option value="custom">Escolher datas</option>
             </select>
-            <select id="cart-sit" onchange="renderCarteira()" style="width:auto;padding:8px 12px;font-size:13px">
-                <option value="">Todas as situações</option>
-                <option value="crit">🔴 Sem follow-up / retorno vencido</option>
-                <option value="aten">🟡 Sem data de retorno / contato velho</option>
-                <option value="ok">🟢 Em dia</option>
-                <option value="herd">📦 Herdados de meses anteriores</option>
-            </select>
+            <input type="date" id="cart-de" onchange="document.getElementById('cart-per').value='custom';renderCarteira()" style="width:auto;padding:7px 10px;font-size:13px;display:none">
+            <input type="date" id="cart-ate" onchange="document.getElementById('cart-per').value='custom';renderCarteira()" style="width:auto;padding:7px 10px;font-size:13px;display:none">
+            <select id="cart-vend" onchange="renderCarteira()" style="width:auto;padding:8px 12px;font-size:13px"><option value="">Todos os vendedores</option></select>
+            <input id="cart-busca" placeholder="Buscar cliente ou nº" oninput="renderCarteira()" style="width:170px;padding:8px 10px;font-size:13px">
         </div>
     </div>
     <div id="cart-body"><div class="empty"><p>Carregando...</p></div></div>
@@ -2571,7 +2574,7 @@ function doMeuEscopo(o){ return souGestor() || (usuarioLogado && o.vend === usua
 function getRetornoHoje()    { const hj=hoje(); return db.orcs.filter(o => (o.status === 'pendente' || o.status === 'enviado') && o.prev === hj && !(o.fus||[]).some(f => f.data >= hj) && doMeuEscopo(o)); }
 // orçamentos em aberto SEM follow-up (mesma regra 🔴 da Carteira aberta), filtrados pelo mês de ABERTURA.
 // mes = '' → todo o período
-function getSemFollowup(mes) { return db.orcs.filter(o => (o.status === 'pendente' || o.status === 'enviado') && (!mes || String(o.data||'').slice(0,7) === mes) && cartSituacao(o).cor === 'crit' && doMeuEscopo(o)); }
+function getSemFollowup(mes) { return db.orcs.filter(o => (o.status === 'pendente' || o.status === 'enviado') && (!mes || String(o.data||'').slice(0,7) === mes) && (function(k){ return k==='semret'||k==='venc'; })(cartSit2(o).k) && doMeuEscopo(o)); }
 function getVencidosSemFu()  { return db.orcs.filter(o => isVencido(o) && o.prev < hoje()); }
 
 function badge(st) {
@@ -3095,7 +3098,27 @@ function relfuEntradas(de,ate,vend,todas){
     });
     return out;
 }
+function relfuAbrir(vend, de, ate){ window._relfuPend={vend:vend||'', de:de, ate:ate}; go('relfu'); }
+function relfuFoco(vend, de, ate, soFech){
+    if(!window._relfuVolta) window._relfuVolta={per:document.getElementById('rfu-per').value, de:document.getElementById('rfu-de').value, ate:document.getElementById('rfu-ate').value, vend:document.getElementById('rfu-vend').value};
+    document.getElementById('rfu-per').value='custom';
+    if(de){ document.getElementById('rfu-de').value=de; document.getElementById('rfu-ate').value=ate||de; }
+    if(vend!=null) document.getElementById('rfu-vend').value=vend;
+    window._relfuSoFech=!!soFech; window._relfuVerTudo=false;
+    relfuRender();
+    var el=document.getElementById('rfu-regs'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function relfuVoltar(){
+    var v=window._relfuVolta; window._relfuVolta=null; window._relfuSoFech=false; if(!v) return relfuRender();
+    document.getElementById('rfu-per').value=v.per; document.getElementById('rfu-de').value=v.de; document.getElementById('rfu-ate').value=v.ate; document.getElementById('rfu-vend').value=v.vend;
+    relfuRender(); window.scrollTo({top:0, behavior:'smooth'});
+}
 function relfuPeriodo(primeira){
+    if(primeira && window._relfuPend){ var pd=window._relfuPend; window._relfuPend=null; window._relfuVolta=null; window._relfuSoFech=false;
+        relfuRender(); document.getElementById('rfu-per').value='custom'; document.getElementById('rfu-de').value=pd.de; document.getElementById('rfu-ate').value=pd.ate;
+        var sv0=document.getElementById('rfu-vend'); sv0.value=pd.vend; relfuRender();
+        setTimeout(function(){ var el=document.getElementById('rfu-regs'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); },150); return; }
+    if(!primeira){ window._relfuVolta=null; window._relfuSoFech=false; }
     var per=document.getElementById('rfu-per').value, n=new Date(), de, ate=hoje();
     if(per==='custom'){ if(primeira && !document.getElementById('rfu-de').value){ document.getElementById('rfu-per').value='mes'; return relfuPeriodo(); } return relfuRender(); }
     if(per==='hoje') de=hoje();
@@ -3152,11 +3175,17 @@ function relfuRender(){
     var td=function(v,al,extra){ return '<td style="text-align:'+(al||'right')+';padding:8px 6px;border-bottom:1px solid #f0f0f0;'+(extra||'')+'">'+v+'</td>'; };
     var pct=function(a,b){ return b?Math.round(a/b*100)+'%':'-'; };
     var h='';
-    var card=function(tit,val,sub,cor){ return '<div class="card" style="padding:14px;min-width:0'+(cor?';border-left:4px solid '+cor:'')+'"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">'+tit+'</div><div style="font-size:26px;font-weight:900;white-space:nowrap">'+val+'</div><div style="font-size:12.5px;color:var(--gray)">'+sub+'</div></div>'; };
+    if(window._relfuVolta || window._relfuSoFech){
+        var fd=document.getElementById('rfu-de').value, fa=document.getElementById('rfu-ate').value;
+        h+='<div style="background:#eef2ff;border:1px solid #c7d2fe;color:#312e81;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px">'
+          +'<span>🔎 Rastreando: <b>'+(fV?escH(primeiroNome(fV)):'toda a equipe')+'</b> · '+(fd===fa?isoToBr(fd):isoToBr(fd)+' a '+isoToBr(fa))+(window._relfuSoFech?' · só orçamentos que fecharam depois do follow-up':'')+'</span>'
+          +'<button class="btn bg bsm" onclick="relfuVoltar()">← voltar</button></div>';
+    }
+    var card=function(tit,val,sub,cor,click){ return '<div class="card" '+(click?'onclick="'+click+'" ':'')+'style="padding:14px;min-width:0'+(click?';cursor:pointer':'')+(cor?';border-left:4px solid '+cor:'')+'"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">'+tit+'</div><div style="font-size:26px;font-weight:900;white-space:nowrap">'+val+'</div><div style="font-size:12.5px;color:var(--gray)">'+sub+'</div></div>'; };
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px">';
-    h+=card('Follow-ups feitos',reais.length,(du?(reais.length/du).toFixed(1).replace('.',',')+' por dia útil · ':'')+'não contam envio, links e registros automáticos');
+    h+=card('Follow-ups feitos',reais.length,(du?(reais.length/du).toFixed(1).replace('.',',')+' por dia útil · ':'')+'não contam envio, links e registros automáticos',null,"relfuFoco(null,null,null,false)");
     h+=card('Orçamentos trabalhados',trabArr.length,'receberam ao menos 1 contato');
-    h+=card('Fecharam depois do follow-up',trabFech.length,pct(trabFech.length,trabArr.length)+' dos trabalhados (até hoje)','#16a34a');
+    h+=card('Fecharam depois do follow-up',trabFech.length,pct(trabFech.length,trabArr.length)+' dos trabalhados · clique para ver','#16a34a',"relfuFoco(null,null,null,true)");
     h+=card('Fechamentos no período',fech.length,fechFu.length+' tiveram follow-up antes · '+pct(fechFu.length,fech.length));
     h+=card('Valor fechado com follow-up',brl(fechFu.reduce(function(a,x){return a+x.val;},0)),'de '+brl(fech.reduce(function(a,x){return a+x.val;},0))+' fechados no período','#16a34a');
     h+='</div>';
@@ -3166,9 +3195,10 @@ function relfuRender(){
     if(!vArr.length) h+='<tr><td colspan="11" style="padding:18px;text-align:center;color:var(--gray)">Nenhum registro no período.</td></tr>';
     vArr.forEach(function(p){
         var nd=Object.keys(p.dias).length, sem=Math.max(0,du-nd);
-        h+='<tr style="cursor:pointer" onclick="document.getElementById(\'rfu-vend\').value=\''+String(p.vend).replace(/'/g,"\\'")+'\';relfuRender()">'
-          +td('<b>'+escH(primeiroNome(p.vend))+'</b>','left')+td('<b style="font-size:15px">'+p.fu+'</b>')+td(du?(p.fu/du).toFixed(1).replace('.',','):'-')
-          +td(sem,'right',sem>0?'color:var(--red);font-weight:700':'color:#16a34a')+td(p.trab)+td(p.trabFech,'right','color:#16a34a;font-weight:700')+td(pct(p.trabFech,p.trab))
+        var vq=String(p.vend).replace(/'/g,"\\'");
+        h+='<tr>'
+          +td('<b style="cursor:pointer;text-decoration:underline dotted" onclick="relfuFoco(\''+vq+'\',null,null,false)">'+escH(primeiroNome(p.vend))+'</b>','left')+td('<b style="font-size:15px;cursor:pointer;color:#2563eb;text-decoration:underline" onclick="relfuFoco(\''+vq+'\',null,null,false)">'+p.fu+'</b>')+td(du?(p.fu/du).toFixed(1).replace('.',','):'-')
+          +td(sem,'right',sem>0?'color:var(--red);font-weight:700':'color:#16a34a')+td(p.trab)+td(p.trabFech?'<span style="cursor:pointer;text-decoration:underline" onclick="relfuFoco(\''+vq+'\',null,null,true)">'+p.trabFech+'</span>':0,'right','color:#16a34a;font-weight:700')+td(pct(p.trabFech,p.trab))
           +td(p.fech)+td(p.fechFu+' <span style="color:var(--gray)">('+pct(p.fechFu,p.fech)+')</span>')+td(brl(p.valFu),'right','font-weight:700')+td(p.links||'-')+'</tr>';
     });
     h+='</tbody></table></div><div style="font-size:12px;color:var(--gray);margin-top:8px">Dias sem follow-up: dias úteis (seg a sáb) do período em que o vendedor não fez nenhum follow-up. Já fecharam: dos orçamentos que ele contatou no período, quantos estão fechados hoje.</div></div>';
@@ -3179,12 +3209,12 @@ function relfuRender(){
         var mapa={}; reais.forEach(function(f){ var k=f.data+'|'+f.vend; mapa[k]=(mapa[k]||0)+1; });
         var mx=Math.max(1,...Object.values(mapa));
         var sem=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-        h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:10px">Follow-ups por dia</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+th('Dia',0)+vCols.map(function(v,i){return th(escH(primeiroNome(v)),i+1);}).join('')+th('Total',9)+'</tr></thead><tbody>';
+        h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:2px">Follow-ups por dia</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">clique num número para ver exatamente quais follow-ups foram feitos</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+th('Dia',0)+vCols.map(function(v,i){return th(escH(primeiroNome(v)),i+1);}).join('')+th('Total',9)+'</tr></thead><tbody>';
         dias.forEach(function(k){
             var dt=new Date(k+'T12:00'), dom=dt.getDay()===0, tot=0;
             var cells=vCols.map(function(v){ var n=mapa[k+'|'+v]||0; tot+=n; var a=n?0.12+0.6*(n/mx):0;
-                return td(n?'<b>'+n+'</b>':(dom?'':'<span style="color:var(--red)">0</span>'),'right','background:'+(n?'rgba(22,163,74,'+a.toFixed(2)+')':'transparent')); }).join('');
-            h+='<tr'+(k===hoje()?' style="outline:2px solid #f59e0b"':'')+'>'+td('<b>'+sem[dt.getDay()]+' '+isoToBr(k).slice(0,5)+'</b>'+(k===hoje()?' <span style="color:var(--gray)">hoje</span>':''),'left',dom?'color:var(--gray)':'')+cells+td('<b>'+tot+'</b>')+'</tr>';
+                return td(n?'<b>'+n+'</b>':(dom?'':'<span style="color:var(--red)">0</span>'),'right','background:'+(n?'rgba(22,163,74,'+a.toFixed(2)+')':'transparent')+(n?';cursor:pointer" onclick="relfuFoco(\''+String(v).replace(/'/g,"\\'")+'\',\''+k+'\',\''+k+'\',false)" title="Ver os follow-ups de '+escH(primeiroNome(v))+' neste dia':'')); }).join('');
+            h+='<tr'+(k===hoje()?' style="outline:2px solid #f59e0b"':'')+'>'+td('<b>'+sem[dt.getDay()]+' '+isoToBr(k).slice(0,5)+'</b>'+(k===hoje()?' <span style="color:var(--gray)">hoje</span>':''),'left',dom?'color:var(--gray)':'')+cells+td(tot?'<b style="cursor:pointer;text-decoration:underline" onclick="relfuFoco(\'\',\''+k+'\',\''+k+'\',false)">'+tot+'</b>':'<b>0</b>')+'</tr>';
         });
         h+='</tbody></table></div></div>';
     }
@@ -3201,8 +3231,9 @@ function relfuRender(){
     // registros
     var verTudo=!!window._relfuVerTudo;
     var outros=fus.length-reais.length;
-    var regs=(verTudo?fus:reais).slice().sort(function(a,b){ return b.data.localeCompare(a.data) || b.ix-a.ix; });
-    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><div style="font-weight:700;margin-bottom:4px">'+(verTudo?'Histórico completo ('+fus.length+')':'Follow-ups feitos ('+reais.length+')')+'</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">'+(verTudo?'tudo que foi registrado nos orçamentos · só a linha marcada Follow-up entra na conta':'contatos para fechar orçamento em aberto · clique para abrir o orçamento')+'</div></div>'
+    if(window._relfuSoFech){ reais=reais.filter(function(f){ return fechouDepois(f.o); }); }
+    var regs=(verTudo&&!window._relfuSoFech?fus:reais).slice().sort(function(a,b){ return b.data.localeCompare(a.data) || b.ix-a.ix; });
+    h+='<div class="card" id="rfu-regs" style="scroll-margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><div style="font-weight:700;margin-bottom:4px">'+(verTudo?'Histórico completo ('+fus.length+')':'Follow-ups feitos ('+reais.length+')')+'</div><div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">'+(verTudo?'tudo que foi registrado nos orçamentos · só a linha marcada Follow-up entra na conta':'contatos para fechar orçamento em aberto · clique para abrir o orçamento')+'</div></div>'
       +(outros?'<label style="font-size:12.5px;color:var(--gray);display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap"><input type="checkbox" style="width:auto" '+(verTudo?'checked':'')+' onchange="window._relfuVerTudo=this.checked;relfuRender()"> mostrar também envios, links e automáticos ('+outros+')</label>':'')+'</div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
       +['Quando','Vendedor','Nº / Cliente','Tipo','Situação hoje','O que foi registrado'].map(th).join('')+'</tr></thead><tbody>';
@@ -3228,9 +3259,9 @@ function atualizarAvisoRetorno(){
         // gestor não recebe lembrete de retorno (não é dele); no lugar, o resumo de follow-ups do dia
         var hj=hoje(), fh=relfuEntradas(hj,hj,'');
         var vs={}; fh.forEach(function(f){ vs[f.vend]=(vs[f.vend]||0)+1; });
-        var det=Object.keys(vs).sort(function(a,b){return vs[b]-vs[a];}).map(function(v){ return escH(primeiroNome(v))+' '+vs[v]; }).join(' · ');
+        var det=Object.keys(vs).sort(function(a,b){return vs[b]-vs[a];}).map(function(v){ return '<a href="javascript:void(0)" style="color:inherit;font-weight:700" onclick="event.stopPropagation();relfuAbrir(\''+String(v).replace(/'/g,"\\'")+'\',\''+hj+'\',\''+hj+'\')">'+escH(primeiroNome(v))+' '+vs[v]+'</a>'; }).join(' · ');
         document.getElementById('aviso-ret-txt').innerHTML='<b>📊 Hoje a equipe registrou '+fh.length+' follow-up(s)</b><br>'+(det||'ninguém registrou contato ainda')+' · <u><b>abrir relatório</b></u>';
-        box.onclick=function(){ go('relfu'); };
+        box.onclick=function(){ relfuAbrir('', hj, hj); };
         box.style.background='#eef2ff'; box.style.borderColor='#6366f1'; box.style.color='#312e81'; box.style.animation='none';
         box.style.display='block';
         return;
@@ -3259,6 +3290,58 @@ function renderListaAlerta(){
         var sit=cartSituacao(o); var tel=(o.tel||'').replace(/\D/g,'');
         return '<tr onclick="abrirModal('+o.id+')"><td><b>'+escH(o.num)+'</b></td><td>'+escH(o.cli)+'<br><span style="font-size:10.5px;color:var(--gray)">'+escH([o.veiculo,o.placa].filter(Boolean).join(' · '))+(tel?' · <a href="https://wa.me/55'+tel+'" target="_blank" onclick="event.stopPropagation()">📱 '+escH(o.tel)+'</a>':'')+'</span></td><td>'+escH(primeiroNome(o.vend))+'</td><td>'+dtBR(o.data)+'</td><td>'+(o.prev?dtBR(o.prev):'—')+'</td><td style="font-size:11.5px">'+escH(sit.txt)+'</td><td style="text-align:right;font-weight:700">'+R$(o.val)+'</td></tr>';
       }).join('')+'</tbody></table>';
+}
+
+// ═══ TERMÔMETRO DE CONVERSÃO (dashboard) ═══
+// compara o mês com o mês anterior NO MESMO PONTO: orçamentos feitos até o dia X e fechados até o dia X
+function renderTermometro(mes){
+    var el=document.getElementById('dash-termo'); if(!el) return;
+    if(!mes){ el.innerHTML='<div style="color:var(--gray);font-size:13px">Escolha um mês para comparar.</div>'; return; }
+    var ehAtual=mes===mesAtual(), dia=ehAtual?Number(hoje().slice(8,10)):31;
+    var ant=(function(){ var a=Number(mes.slice(0,4)), m=Number(mes.slice(5,7))-1; if(m<1){ m=12; a--; } return a+'-'+String(m).padStart(2,'0'); })();
+    var fim=function(mm){ var a=Number(mm.slice(0,4)), m=Number(mm.slice(5,7)); var ult=new Date(a,m,0).getDate(); return mm+'-'+String(Math.min(dia,ult)).padStart(2,'0'); };
+    var vv=function(o){ return Number(o.valorAprovado!=null?o.valorAprovado:o.val)||0; };
+    var calc=function(mm, vend){
+        var lim=fim(mm);
+        var saf=(db.orcs||[]).filter(function(o){ var d=String(o.data||'').slice(0,10); return !o.deleted && d.slice(0,7)===mm && d<=lim && (!vend||o.vend===vend) && doMeuEscopo(o); });
+        var fe=saf.filter(function(o){ return o.status==='fechado' && o.aprovadoEm && _dLocal(new Date(o.aprovadoEm))<=lim; });
+        var orc=saf.reduce(function(t,o){return t+(Number(o.val)||0);},0), fec=fe.reduce(function(t,o){return t+vv(o);},0);
+        var ab=saf.filter(function(o){ return o.status==='pendente'||o.status==='enviado'; });
+        var semret=ab.filter(function(o){ return cartSit2(o).k==='semret'; });
+        return {n:saf.length, nf:fe.length, orc:orc, fec:fec, cq:saf.length?fe.length/saf.length*100:0, cv:orc?fec/orc*100:0,
+                tko:saf.length?orc/saf.length:0, tkf:fe.length?fec/fe.length:0, sr:semret.length, vsr:semret.reduce(function(t,o){return t+(Number(o.val)||0);},0)};
+    };
+    var brl=function(v){ return fmtBRL(v||0); }, pc=function(v){ return Math.round(v)+'%'; };
+    var dif=function(a,b){ var d=Math.round(a-b); var c=d>=0?'#16a34a':'var(--red)'; return '<span style="color:'+c+';font-weight:700;font-size:11.5px">'+(d>=0?'▲ ':'▼ ')+Math.abs(d)+' pts</span>'; };
+    var vends={}; (db.orcs||[]).forEach(function(o){ var d=String(o.data||'').slice(0,7); if((d===mes||d===ant) && o.vend && doMeuEscopo(o)) vends[o.vend]=1; });
+    var linhas=[{v:'',nome:'Equipe'}].concat(Object.keys(vends).sort().map(function(v){ return {v:v,nome:primeiroNome(v)}; }));
+    var th=function(t,i){ return '<th style="text-align:'+(i===0?'left':'right')+';padding:7px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11px;text-transform:uppercase;white-space:nowrap">'+t+'</th>'; };
+    var h='<div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">'+(ehAtual?'Orçamentos feitos até o dia '+dia+' e fechados até o dia '+dia+', comparados com '+rotuloMes(ant)+' no mesmo ponto.':'Mês inteiro comparado com '+rotuloMes(ant)+'.')+' Conversão em R$ é a que mostra se os orçamentos grandes estão fechando.</div>';
+    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+      +['','Orçado','Fechado','Conversão em qtd','Conversão em R$','Ticket orçado → fechado','Nunca teve retorno'].map(th).join('')+'</tr></thead><tbody>';
+    linhas.forEach(function(L,ix){
+        var a=calc(mes,L.v), b=calc(ant,L.v); if(!a.n && !b.n) return;
+        var td='padding:8px 6px;border-bottom:1px solid #f0f0f0;text-align:right;';
+        var cvCor=a.cv>=45?'#16a34a':a.cv>=35?'#b8860b':'var(--red)';
+        h+='<tr'+(ix===0?' style="background:#f8fafc;font-weight:700"':'')+'>'
+          +'<td style="'+td+'text-align:left;font-weight:700">'+escH(L.nome)+'</td>'
+          +'<td style="'+td+'">'+brl(a.orc)+'<br><span style="color:var(--gray);font-size:11.5px;font-weight:400">'+a.n+' orç.</span></td>'
+          +'<td style="'+td+'">'+brl(a.fec)+'<br><span style="color:var(--gray);font-size:11.5px;font-weight:400">'+a.nf+' fechados</span></td>'
+          +'<td style="'+td+'">'+pc(a.cq)+'<br>'+dif(a.cq,b.cq)+'</td>'
+          +'<td style="'+td+'"><b style="font-size:15px;color:'+cvCor+'">'+pc(a.cv)+'</b><br>'+dif(a.cv,b.cv)+'</td>'
+          +'<td style="'+td+'">'+brl(a.tko)+' → '+brl(a.tkf)+'</td>'
+          +'<td style="'+td+'cursor:pointer;color:'+(a.sr?'var(--red)':'#16a34a')+';font-weight:700" onclick="cartAbrirDoDash(\''+String(L.v).replace(/'/g,"\\'")+'\',\''+mes+'\')" title="Abrir na Carteira aberta">'+a.sr+(a.sr?' · '+brl(a.vsr)+' ›':'')+'</td></tr>';
+    });
+    h+='</tbody></table></div><div style="font-size:11.5px;color:var(--gray);margin-top:6px">▲▼ = diferença em pontos contra '+rotuloMes(ant)+'. Clique em "Nunca teve retorno" para ver os orçamentos.</div>';
+    el.innerHTML=h;
+}
+function cartAbrirDoDash(vend, mes){
+    go('carteira');
+    var a=Number(mes.slice(0,4)), m=Number(mes.slice(5,7));
+    var p=document.getElementById('cart-per'); p.value=(mes===mesAtual())?'mes':'custom';
+    document.getElementById('cart-de').value=mes+'-01'; document.getElementById('cart-ate').value=_dLocal(new Date(a,m,0));
+    document.getElementById('cart-vend').value=vend||''; window._cartSit='semret';
+    cartPeriodo();
 }
 
 // ═══ DASHBOARD ═══
@@ -3311,6 +3394,7 @@ function renderDash() {
         <div class="fstep" onclick="irListaFiltro('fechado')" style="background:var(--green-bg);cursor:pointer"><div class="fn" style="color:var(--green)">Fechados (desta safra)</div><div class="fv" style="color:var(--green)">${fechSafra.length}</div><div class="fs" style="color:var(--green)">${R$(valFechSafra)}</div></div>
     `;
 
+    try { renderTermometro(mes); } catch(e){ console.error('termometro', e); }
     const _hjDash = hoje();
     const urgentes = db.orcs.filter(o => (o.status==='pendente'||o.status==='enviado') && !(o.prev && o.prev>_hjDash) && (!ultimoFu(o) || ultimoFu(o).data<=diasAtras(7))).slice(0,5);
     document.getElementById('dash-fus').innerHTML = urgentes.length===0
@@ -3440,89 +3524,121 @@ function cartSituacao(o){
     return {cor:'ok', txt:'retorno marcado para '+isoToBr(o.prev), ord:6};
 }
 function cartAbertos(){ return (db.orcs||[]).filter(function(o){ return o.status==='pendente'||o.status==='enviado'; }); }
+// situação pela regra do follow-up: só conta retorno feito DEPOIS do dia do orçamento (relfuClasse==='fu')
+var CART_SIT={semret:{t:'Nunca teve retorno',c:'var(--red)',o:1},venc:{t:'Retorno vencido',c:'#c2410c',o:2},semdata:{t:'Sem data de retorno',c:'#b8860b',o:3},ok:{t:'Em dia',c:'#16a34a',o:4}};
+function cartSit2(o){
+    var fus=(o.fus||[]).filter(function(f){ return relfuClasse(o,f)==='fu'; });
+    var ult=fus.length?String(fus[fus.length-1].data||'').slice(0,10):'';
+    var hj=hoje(), idade=cartDias(o.data)||0;
+    if(o.prev && o.prev>=hj) return {k:'ok', ult:ult, n:fus.length, det:'retorno '+isoToBr(o.prev).slice(0,5)};
+    if(!fus.length && idade>=1) return {k:'semret', ult:'', n:0, det:'feito há '+idade+' dia(s)'};
+    if(o.prev && o.prev<hj && !(ult && ult>=o.prev)) return {k:'venc', ult:ult, n:fus.length, det:'era '+isoToBr(o.prev).slice(0,5)};
+    if(!o.prev) return {k:'semdata', ult:ult, n:fus.length, det:'sem próximo contato'};
+    return {k:'ok', ult:ult, n:fus.length, det:'em dia'};
+}
+function cartPeriodo(){
+    var per=document.getElementById('cart-per').value, n=new Date(), de='', ate='';
+    var dl=_dLocal, dd=function(o){ return dl(new Date(n.getFullYear(),n.getMonth(),n.getDate()+o)); };
+    if(per==='hoje'){ de=ate=hoje(); }
+    else if(per==='ontem'){ de=ate=dd(-1); }
+    else if(per==='semana'){ var w=(n.getDay()+6)%7; de=dd(-w); ate=hoje(); }
+    else if(per==='7'){ de=dd(-6); ate=hoje(); }
+    else if(per==='mes'){ de=dl(new Date(n.getFullYear(),n.getMonth(),1)); ate=hoje(); }
+    else if(per==='mesant'){ de=dl(new Date(n.getFullYear(),n.getMonth()-1,1)); ate=dl(new Date(n.getFullYear(),n.getMonth(),0)); }
+    else if(per==='antes'){ de='2000-01-01'; ate=dl(new Date(n.getFullYear(),n.getMonth(),0)); }
+    var cd=document.getElementById('cart-de'), ca=document.getElementById('cart-ate');
+    var cust=per==='custom'; cd.style.display=ca.style.display=cust?'':'none';
+    if(!cust){ cd.value=de; ca.value=ate; } else if(!cd.value){ cd.value=dl(new Date(n.getFullYear(),n.getMonth(),1)); ca.value=hoje(); }
+    renderCarteira();
+}
 function renderCarteira(){
     var body=document.getElementById('cart-body'); if(!body) return;
-    var fVend=(document.getElementById('cart-vend')||{}).value||'';
-    var fSit=(document.getElementById('cart-sit')||{}).value||'';
-    var mesAt=mesAtual();
-    var todos=cartAbertos().map(function(o){ var s=cartSituacao(o); return {o:o, s:s, idade:cartDias(o.data)||0, herdado:(String(o.data||'').slice(0,7)<mesAt)}; });
-    // preenche o filtro de vendedores uma vez
+    var cd=document.getElementById('cart-de'), ca=document.getElementById('cart-ate'), per=document.getElementById('cart-per');
+    if(per && !cd.value && per.value!=='todos'){ return cartPeriodo(); }
+    var de=per.value==='todos'?'':cd.value, ate=per.value==='todos'?'':ca.value;
+    var fVend=document.getElementById('cart-vend').value||'';
+    var q=(document.getElementById('cart-busca').value||'').toLowerCase().trim();
+    var fSit=window._cartSit||'', ord=window._cartOrd||'valor';
+    var todos=cartAbertos().map(function(o){ return {o:o, s:cartSit2(o), idade:cartDias(o.data)||0, val:Number(o.val)||0}; });
+    // badge do menu = carteira inteira precisando de ação
+    var acaoTot=todos.filter(function(x){ return x.s.k==='semret'||x.s.k==='venc'; }).length;
+    var nb=document.getElementById('nb-cart'); if(nb){ nb.textContent=acaoTot; nb.style.display=acaoTot?'inline-block':'none'; }
     var sv=document.getElementById('cart-vend');
     if(sv && sv.options.length<=1){
         var vs=[]; todos.forEach(function(x){ if(x.o.vend && vs.indexOf(x.o.vend)<0) vs.push(x.o.vend); });
         vs.sort().forEach(function(v){ var op=document.createElement('option'); op.value=v; op.textContent=primeiroNome(v); sv.appendChild(op); });
     }
-    var brl=function(v){ return fmtBRL(v||0); };
-    // ── resumo por vendedor (sempre sobre a carteira inteira) ──
-    var porV={};
-    todos.forEach(function(x){
-        var v=x.o.vend||'(sem vendedor)';
-        if(!porV[v]) porV[v]={vend:v, n:0, val:0, crit:0, aten:0, ok:0, herd:0, velho:0};
-        var p=porV[v]; p.n++; p.val+=(x.o.val||0); p[x.s.cor]++; if(x.herdado) p.herd++; if(x.idade>p.velho) p.velho=x.idade;
-    });
-    var vArr=Object.values(porV).sort(function(a,b){ return b.crit-a.crit || b.val-a.val; });
-    var totN=todos.length, totVal=todos.reduce(function(a,x){return a+(x.o.val||0);},0);
-    var totCrit=todos.filter(function(x){return x.s.cor==='crit';}).length;
-    var totCritVal=todos.filter(function(x){return x.s.cor==='crit';}).reduce(function(a,x){return a+(x.o.val||0);},0);
-    var totHerd=todos.filter(function(x){return x.herdado;}).length;
-    var semFu=todos.filter(function(x){return !(x.o.fus||[]).length;}).length;
-    var h='';
-    h+='<div class="mets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">';
-    h+='<div class="card" style="padding:14px"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">Em aberto</div><div style="font-size:26px;font-weight:900">'+totN+'</div><div style="font-size:12.5px;color:var(--gray)">'+brl(totVal)+' parados</div></div>';
-    h+='<div class="card" style="padding:14px;border-left:4px solid var(--red)"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">🔴 Sem follow-up / vencidos</div><div style="font-size:26px;font-weight:900;color:var(--red)">'+totCrit+'</div><div style="font-size:12.5px;color:var(--gray)">'+brl(totCritVal)+' em risco</div></div>';
-    h+='<div class="card" style="padding:14px"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">Nunca contatados</div><div style="font-size:26px;font-weight:900">'+semFu+'</div><div style="font-size:12.5px;color:var(--gray)">nenhum registro no histórico</div></div>';
-    h+='<div class="card" style="padding:14px"><div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">📦 Herdados</div><div style="font-size:26px;font-weight:900">'+totHerd+'</div><div style="font-size:12.5px;color:var(--gray)">abertos de meses anteriores</div></div>';
-    h+='</div>';
-    h+='<div class="card" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:10px">Carteira por vendedor</div>';
-    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
-      +['Vendedor','Abertos','Valor parado','🔴','🟡','🟢','Herdados','Mais antigo'].map(function(t,i){ return '<th style="text-align:'+(i===0?'left':'right')+';padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">'+t+'</th>'; }).join('')
-      +'</tr></thead><tbody>';
-    vArr.forEach(function(p){
-        h+='<tr style="cursor:pointer" onclick="cartFiltrarVend(\''+String(p.vend).replace(/'/g,"\\'")+'\')">'
-          +'<td style="padding:8px 6px;border-bottom:1px solid #f0f0f0;font-weight:600">'+primeiroNome(p.vend)+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0">'+p.n+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0">'+brl(p.val)+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0;font-weight:800;color:var(--red)">'+p.crit+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0;color:#b8860b">'+p.aten+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0;color:#16a34a">'+p.ok+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0">'+p.herd+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0">'+p.velho+' dias</td></tr>';
-    });
-    h+='</tbody></table></div></div>';
-    // ── lista detalhada ──
-    var lista=todos.filter(function(x){
+    var base=todos.filter(function(x){
+        var d=String(x.o.data||'').slice(0,10);
+        if(de && (d<de || d>ate)) return false;
         if(fVend && x.o.vend!==fVend) return false;
-        if(fSit==='herd') return x.herdado;
-        if(fSit && x.s.cor!==fSit) return false;
+        if(q && !(String(x.o.cli||'').toLowerCase().includes(q) || String(x.o.num||'').toLowerCase().includes(q))) return false;
         return true;
-    }).sort(function(a,b){ return a.s.ord-b.s.ord || b.idade-a.idade; });
-    h+='<div class="card"><div style="font-weight:700;margin-bottom:4px">Orçamentos em aberto ('+lista.length+')</div>';
-    h+='<div style="font-size:12.5px;color:var(--gray);margin-bottom:10px">clique na linha para abrir e registrar o follow-up</div>';
-    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
-      +'<th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">Situação</th>'
-      +'<th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">Nº / Cliente</th>'
-      +'<th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">Vendedor</th>'
-      +'<th style="text-align:right;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">Valor</th>'
-      +'<th style="text-align:right;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">Parado há</th>'
-      +'<th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11.5px;text-transform:uppercase">Último combinado</th></tr></thead><tbody>';
-    if(!lista.length) h+='<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--gray)">Nada nesse filtro. 👏</td></tr>';
-    lista.forEach(function(x){
-        var o=x.o, ult=(o.fus||[]).length?o.fus[o.fus.length-1]:null;
-        var pt=x.s.cor==='crit'?'🔴':(x.s.cor==='aten'?'🟡':'🟢');
-        var cor=x.s.cor==='crit'?'var(--red)':(x.s.cor==='aten'?'#b8860b':'#16a34a');
-        h+='<tr style="cursor:pointer" onclick="abrirModal('+o.id+')">'
-          +'<td style="padding:8px 6px;border-bottom:1px solid #f0f0f0;color:'+cor+';font-weight:600;white-space:nowrap">'+pt+' '+x.s.txt+'</td>'
-          +'<td style="padding:8px 6px;border-bottom:1px solid #f0f0f0"><b>'+(o.num||'—')+'</b><br><span style="color:var(--gray)">'+(o.cli||'')+'</span>'+(x.herdado?' <span class="chip">📦 herdado</span>':'')+'</td>'
-          +'<td style="padding:8px 6px;border-bottom:1px solid #f0f0f0">'+primeiroNome(o.vend||'—')+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0;font-weight:700">'+brl(o.val)+'</td>'
-          +'<td style="text-align:right;padding:8px 6px;border-bottom:1px solid #f0f0f0">'+x.idade+' dias</td>'
-          +'<td style="padding:8px 6px;border-bottom:1px solid #f0f0f0;max-width:340px">'+(ult?('<span style="color:var(--gray)">'+isoToBr(ult.data)+' · </span>'+String(ult.txt||'').slice(0,90)):'<span style="color:var(--red)">nunca registrou nada</span>')+'</td></tr>';
     });
+    var brl=function(v){ return fmtBRL(v||0); };
+    var soma=function(a){ return a.reduce(function(t,x){ return t+x.val; },0); };
+    var grp={semret:[],venc:[],semdata:[],ok:[]}; base.forEach(function(x){ grp[x.s.k].push(x); });
+    var acao=grp.venc.concat(grp.semdata);
+    var card=function(key,tit,arr,cor,sub){
+        var on=fSit===key;
+        return '<div class="card" onclick="window._cartSit=\''+(on?'':key)+'\';renderCarteira()" style="padding:14px;cursor:pointer;min-width:0;border:2px solid '+(on?cor:'transparent')+';border-left:4px solid '+cor+'">'
+          +'<div style="font-size:11.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.4px">'+tit+'</div>'
+          +'<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:26px;font-weight:900;color:'+cor+'">'+arr.length+'</span><span style="font-size:14px;font-weight:700">'+brl(soma(arr))+'</span></div>'
+          +'<div style="font-size:12px;color:var(--gray)">'+sub+'</div></div>';
+    };
+    var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
+    h+=card('','Em aberto',base,'#334155','clique num quadro para filtrar a lista');
+    h+=card('semret','Nunca teve retorno',grp.semret,'var(--red)','ninguém voltou no cliente');
+    h+=card('acao','Vencido ou sem data',acao,'#c2410c',grp.venc.length+' vencidos · '+grp.semdata.length+' sem data');
+    h+=card('ok','Em dia',grp.ok,'#16a34a','retorno marcado e cumprido');
+    h+='</div>';
+    // por vendedor (compacto)
+    var porV={};
+    base.forEach(function(x){ var v=x.o.vend||'(sem vendedor)'; var p=porV[v]||(porV[v]={vend:v,n:0,val:0,semret:0,vsr:0,acao:0,ok:0,max:null});
+        p.n++; p.val+=x.val; if(x.s.k==='semret'){ p.semret++; p.vsr+=x.val; } else if(x.s.k==='ok') p.ok++; else p.acao++;
+        if(x.s.k!=='ok' && (!p.max || x.val>p.max.val)) p.max=x; });
+    var vArr=Object.values(porV).sort(function(a,b){ return b.vsr-a.vsr || b.val-a.val; });
+    if(!fVend && vArr.length>1){
+        var th=function(t,i){ return '<th style="text-align:'+(i===0||i===6?'left':'right')+';padding:7px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11px;text-transform:uppercase;white-space:nowrap">'+t+'</th>'; };
+        h+='<div class="card" style="margin-bottom:14px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+          +['Vendedor','Em aberto','Valor','Nunca teve retorno','Vencido / sem data','Em dia','Maior orçamento parado'].map(th).join('')+'</tr></thead><tbody>';
+        vArr.forEach(function(p){
+            var td='padding:8px 6px;border-bottom:1px solid #f0f0f0;';
+            h+='<tr style="cursor:pointer" onclick="cartFiltrarVend(\''+String(p.vend).replace(/'/g,"\\'")+'\')">'
+              +'<td style="'+td+'font-weight:700">'+escH(primeiroNome(p.vend))+'</td><td style="'+td+'text-align:right">'+p.n+'</td><td style="'+td+'text-align:right">'+brl(p.val)+'</td>'
+              +'<td style="'+td+'text-align:right;color:var(--red);font-weight:800">'+(p.semret?p.semret+' · '+brl(p.vsr):'0')+'</td>'
+              +'<td style="'+td+'text-align:right;color:#c2410c">'+p.acao+'</td><td style="'+td+'text-align:right;color:#16a34a">'+p.ok+'</td>'
+              +'<td style="'+td+'color:var(--gray)">'+(p.max?escH(p.max.o.num||'')+' '+escH(primeiroNome(p.max.o.cli||''))+' · <b style="color:var(--text)">'+brl(p.max.val)+'</b>':'-')+'</td></tr>';
+        });
+        h+='</tbody></table></div></div>';
+    }
+    // lista
+    var lista=base.filter(function(x){ if(!fSit) return true; if(fSit==='acao') return x.s.k==='venc'||x.s.k==='semdata'; return x.s.k===fSit; });
+    lista.sort(function(a,b){ if(ord==='idade') return b.idade-a.idade||b.val-a.val; if(ord==='sit') return CART_SIT[a.s.k].o-CART_SIT[b.s.k].o||b.val-a.val; return b.val-a.val; });
+    var ob=function(k,t){ return '<button class="btn bsm '+(ord===k?'bp':'bg')+'" onclick="window._cartOrd=\''+k+'\';renderCarteira()">'+t+'</button>'; };
+    var titSit=fSit==='acao'?'Vencido ou sem data':(fSit?CART_SIT[fSit].t:'Todos em aberto');
+    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+      +'<div><div style="font-weight:700">'+titSit+' · '+lista.length+' orçamento(s) · '+brl(soma(lista))+'</div><div style="font-size:12px;color:var(--gray)">clique na linha para abrir o orçamento e registrar o retorno</div></div>'
+      +'<div style="display:flex;gap:6px;align-items:center"><span style="font-size:12px;color:var(--gray)">Ordenar:</span>'+ob('valor','Maior valor')+ob('idade','Mais parado')+ob('sit','Situação')+'</div></div>';
+    var thl=function(t,r){ return '<th style="text-align:'+(r?'right':'left')+';padding:7px 6px;border-bottom:1px solid var(--border);color:var(--gray);font-size:11px;text-transform:uppercase;white-space:nowrap">'+t+'</th>'; };
+    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+thl('Situação')+thl('Nº / Cliente')+thl('Vendedor')+thl('Valor',1)+thl('Feito em')+thl('Último retorno')+thl('Próximo retorno')+'</tr></thead><tbody>';
+    if(!lista.length) h+='<tr><td colspan="7" style="padding:18px;text-align:center;color:var(--gray)">Nada nesse filtro.</td></tr>';
+    lista.slice(0,300).forEach(function(x){
+        var o=x.o, st=CART_SIT[x.s.k], td='padding:8px 6px;border-bottom:1px solid #f0f0f0;';
+        h+='<tr style="cursor:pointer" onclick="abrirModal('+o.id+')">'
+          +'<td style="'+td+'white-space:nowrap"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+st.c+';margin-right:6px"></span><b style="color:'+st.c+'">'+st.t+'</b><br><span style="color:var(--gray);font-size:11.5px;margin-left:14px">'+x.s.det+'</span></td>'
+          +'<td style="'+td+'"><b>'+escH(o.num||'—')+'</b> '+escH(o.cli||'')+(o.veiculo?'<br><span style="color:var(--gray);font-size:11.5px">'+escH(o.veiculo)+'</span>':'')+'</td>'
+          +'<td style="'+td+'">'+escH(primeiroNome(o.vend||'—'))+'</td>'
+          +'<td style="'+td+'text-align:right;font-weight:800">'+brl(x.val)+'</td>'
+          +'<td style="'+td+'white-space:nowrap">'+(o.data?isoToBr(String(o.data).slice(0,10)).slice(0,5):'—')+' <span style="color:var(--gray)">· há '+x.idade+'d</span></td>'
+          +'<td style="'+td+'white-space:nowrap">'+(x.s.ult?isoToBr(x.s.ult).slice(0,5)+' <span style="color:var(--gray)">('+x.s.n+'x)</span>':'<span style="color:var(--red)">nenhum</span>')+'</td>'
+          +'<td style="'+td+'white-space:nowrap;'+(o.prev&&o.prev<hoje()?'color:var(--red);font-weight:700':'')+'">'+(o.prev?isoToBr(o.prev).slice(0,5):'<span style="color:#b8860b">sem data</span>')+'</td></tr>';
+    });
+    if(lista.length>300) h+='<tr><td colspan="7" style="padding:10px;color:var(--gray)">Mostrando os 300 primeiros. Use os filtros para ver o resto.</td></tr>';
     h+='</tbody></table></div></div>';
     body.innerHTML=h;
-    var nb=document.getElementById('nb-cart'); if(nb){ nb.textContent=totCrit; nb.style.display=totCrit?'inline-block':'none'; }
     var sub=document.getElementById('cart-sub');
-    if(sub) sub.textContent=totN+' em aberto · '+brl(totVal)+' parados · '+totCrit+' precisando de ação hoje';
+    if(sub) sub.textContent=base.length+' em aberto no filtro · '+brl(soma(base))+' · '+grp.semret.length+' nunca tiveram retorno';
 }
 function cartFiltrarVend(v){ var s=document.getElementById('cart-vend'); if(s){ s.value=v; renderCarteira(); } }
 
