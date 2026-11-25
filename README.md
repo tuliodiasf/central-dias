@@ -16,3 +16,5 @@ Histórico e volta de versão: pelo próprio GitHub / painel de deploys.
 | cotacao_pecas.html | Cotação de peças |
 | autorizar.html | Página pública: cliente autoriza orçamento |
 | assinar-vale.html | Página pública: funcionário assina vale |
+| manifest.webmanifest, apple-touch-icon.png, icon-*.png, favicon-32.png | Ícone do app ao salvar na tela inicial do celular |
+| logo-mini.png | Logo pequena do menu recolhido |

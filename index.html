@@ -2,12 +2,19 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Central Dias · Dias Centro Automotivo</title>
-<link rel="icon" href="logo-menu.png">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#141416">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Central Dias">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="description" content="Central de Gerenciamento e Inteligência da Dias Centro Automotivo — resultados, serviços e CRM.">
 <meta property="og:title" content="Central Dias · Dias Centro Automotivo">
 <meta property="og:description" content="Central de Gerenciamento e Inteligência — resultados, serviços e CRM.">
@@ -592,6 +599,93 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 @media(max-width:760px){.plc .prow{grid-template-columns:24px 1fr 66px 54px;gap:9px}
  .plc .trk,.plc .chev{display:none}}
 
+
+/* ══ MENU NOVO (25/11/2026): acordeão, recolher em ícones, barra inferior no celular ══ */
+:root{--sbw:248px;--sbw-rail:72px}
+.sidebar{width:var(--sbw);background:#121214;border-right:1px solid rgba(255,255,255,.06);transition:width .2s ease,transform .25s ease}
+.main{margin-left:var(--sbw);transition:margin-left .2s ease}
+.sb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:18px 14px 14px 18px}
+.sb-logo{height:42px;width:auto;max-width:150px;display:block}
+.sb-mini{display:none;width:50px;height:auto}
+.sb-collapse{background:none;border:none;color:rgba(255,255,255,.4);width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-collapse:hover{background:rgba(255,255,255,.08);color:#fff}
+.sb-collapse svg{width:16px;height:16px;transition:transform .2s}
+.nav{padding:6px 10px 10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+.nav::-webkit-scrollbar{width:6px}.nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:6px}
+.nav .ni,.nav .topic{border-left:none;border-radius:10px;margin:1px 0;padding:10px 12px;font-size:13.5px;font-weight:600;letter-spacing:0;text-transform:none;color:rgba(255,255,255,.72);gap:12px;white-space:nowrap}
+.nav .ni:hover,.nav .topic:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav .ni svg,.nav .topic svg{width:18px;height:18px;opacity:.85}
+.nav .topic.open{color:#fff}
+.nav .topic .chev{width:14px;height:14px;opacity:.45}
+.nav .ni.on{background:rgba(204,0,0,.16);color:#fff}
+.nav .ni.on svg{color:#ff4d4d;opacity:1}
+.subnav{overflow:hidden}
+.subnav.open{padding:2px 0 8px}
+.nav .ni.sub{padding:8px 12px 8px 42px;font-size:13px;font-weight:500;color:rgba(255,255,255,.58);position:relative}
+.nav .ni.sub svg{display:none}
+.nav .ni.sub::before{content:"";position:absolute;left:21px;top:0;bottom:0;width:1px;background:rgba(255,255,255,.1)}
+.nav .ni.sub.on{background:rgba(204,0,0,.14);color:#fff}
+.nav .ni.sub.on::before{background:var(--accent);width:2px}
+.nav .nbadge{font-size:10.5px;padding:1px 7px}
+.nav-sep{height:1px;background:rgba(255,255,255,.08);margin:10px 8px}
+.sb-user{display:flex;align-items:center;gap:10px;padding:12px 12px 14px 14px;border-top:1px solid rgba(255,255,255,.07)}
+.sb-av{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-transform:uppercase}
+.sb-who{flex:1;min-width:0}
+.sb-who #user-info{color:#fff;font-size:13px;font-weight:700;padding:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-who #app-versao{color:rgba(255,255,255,.32);font-size:10px;padding:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-ic{background:none;border:none;color:rgba(255,255,255,.45);width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-ic:hover{background:rgba(255,255,255,.08);color:#fff}
+.sb-ic svg{width:17px;height:17px}
+.sb-lbl{overflow:hidden;text-overflow:ellipsis}
+
+/* recolhido em ícones (só computador) */
+@media(min-width:861px){
+  body.rail .sidebar{width:var(--sbw-rail)}
+  body.rail .main{margin-left:var(--sbw-rail)}
+  body.rail .sb-head{flex-direction:column;padding:14px 0 10px;justify-content:center}
+  body.rail .sb-logo{display:none}
+  body.rail .sb-mini{display:block}
+  body.rail .sb-collapse svg{transform:rotate(180deg)}
+  body.rail .nav{padding:6px 12px}
+  body.rail .nav .ni,body.rail .nav .topic{justify-content:center;padding:11px 0}
+  body.rail .sb-lbl,body.rail .nav .chev,body.rail .subnav,body.rail .nav .nbadge{display:none!important}
+  body.rail .nav .topic.has-on{background:rgba(204,0,0,.16);color:#fff}
+  body.rail .sb-user{flex-direction:column;padding:12px 0}
+  body.rail .sb-who{display:none}
+}
+
+/* celular e tablet */
+.bnav{display:none}
+@media(max-width:860px){
+  .sidebar{width:280px;max-width:86vw;height:100dvh;z-index:300}
+  .mob-overlay{z-index:290}
+  .sidebar{box-shadow:none}
+  .sidebar.open{box-shadow:2px 0 18px rgba(0,0,0,.35)}
+  .sb-collapse{display:none}
+  .menu-toggle{display:none!important}
+  .main{margin-left:0;padding:18px 14px calc(84px + env(safe-area-inset-bottom));}
+  .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:250;background:#121214;border-top:1px solid rgba(255,255,255,.08);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .bnav button{flex:1;background:none;border:none;color:rgba(255,255,255,.55);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;font-family:inherit;padding:6px 0;cursor:pointer;position:relative}
+  .bnav button svg{width:22px;height:22px}
+  .bnav button.on{color:#fff}
+  .bnav button.on svg{color:#ff4d4d}
+  .bnav .bbadge{position:absolute;top:1px;left:calc(50% + 6px);background:var(--accent);color:#fff;border-radius:100px;font-size:9.5px;font-weight:800;padding:1px 5px;display:none}
+  .ph{flex-wrap:wrap;gap:10px}
+}
+
+/* início compacto no celular */
+@media(max-width:600px){
+  .homehero{padding:8px 6px 16px}
+  .homehero h1{font-size:22px;margin:10px 0 4px}
+  .homehero .hh-badge{font-size:10px}
+  .homecards{grid-template-columns:1fr 1fr;gap:10px}
+  .hcard{padding:14px;gap:8px;border-radius:14px}
+  .hcard .hi{width:38px;height:38px;border-radius:10px}
+  .hcard .hi svg{width:20px;height:20px}
+  .hcard h3{font-size:13px;line-height:1.25}
+  .hcard p{font-size:11.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .hcard .arrow{display:none}
+}
 </style>
 </head>
 <body>
@@ -606,41 +700,32 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 
 <!-- ═══ SIDEBAR ═══ -->
 <aside class="sidebar">
-    <div class="logo" style="text-align:center">
-        <div style="padding:6px 10px 2px;margin-bottom:10px">
-            <img src="logo-menu.png" alt="Dias Centro Automotivo" style="width:100%;max-width:175px;display:block;margin:0 auto">
-        </div>
-        <p style="font-size:11px;color:rgba(255,255,255,.62);font-weight:800;text-transform:uppercase;letter-spacing:.5px;line-height:1.35;text-align:center;margin:0">Central de Gerenciamento e Inteligência</p>
+    <div class="sb-head">
+        <img class="sb-logo" src="logo-menu.png" alt="Dias Centro Automotivo">
+        <img class="sb-mini" src="logo-mini.png" alt="Dias">
+        <button class="sb-collapse" onclick="toggleRail()" title="Recolher menu" aria-label="Recolher menu"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg></button>
     </div>
     <nav class="nav">
-        <div class="ni" id="ni-home" onclick="go('home')" style="padding:11px 18px;font-weight:600">
+        <div class="ni on" id="ni-home" onclick="go('home')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10"/></svg>
             Início
         </div>
-        <div class="topic open" onclick="toggleTopic(this,'sub-res')">
+        <div class="topic" data-sub="sub-res" onclick="toggleTopic(this,'sub-res')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 14l3-3 3 3 5-6"/></svg>
             Resultados
             <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"/></svg>
         </div>
-        <div class="subnav open" id="sub-res">
-            <div class="ni sub on" onclick="go('resultados')" id="ni-resultados">
+        <div class="subnav" id="sub-res">
+            <div class="ni sub" onclick="go('resultados')" id="ni-resultados">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 14l3-3 3 3 5-6"/></svg>
                 Painel de Resultados
-            </div>
-            <div class="ni sub admin-only" onclick="go('metas')" id="ni-metas">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke-width="2"/><circle cx="12" cy="12" r="0.6" stroke-width="2"/></svg>
-                Abertura de mês
-            </div>
-            <div class="ni sub gestor-only" onclick="go('config')" id="ni-config">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 13a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
-                Configurações
             </div>
             <div class="ni sub" onclick="go('comissoes')" id="ni-comissoes">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 14l3-3 3 3 5-6"/></svg>
                 Indicador Individual
             </div>
         </div>
-        <div class="topic" onclick="toggleTopic(this,'sub-svc')">
+        <div class="topic" data-sub="sub-svc" onclick="toggleTopic(this,'sub-svc')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a4 4 0 015.66 5.66l-8 8L5 19l1.34-3.66 8-8A4 4 0 0011 4z"/></svg>
             Serviços
             <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"/></svg>
@@ -658,71 +743,51 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 11l3 3 8-8M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>
                 Checklist por O.S.
             </div>
-            <div class="ni sub gestor-only" onclick="go('servicos-cfg')" id="ni-servicos-cfg">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 13a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
-                Config Serviços
-            </div>
-            <div class="ni sub gestor-only" onclick="go('importar-svc')" id="ni-importar-svc">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
-                Importar Serviços
-            </div>
         </div>
-        <div class="topic" onclick="toggleTopic(this,'sub-crm')">
+        <div class="topic" data-sub="sub-crm" onclick="toggleTopic(this,'sub-crm')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
-            HUB COMERCIAL
+            Hub Comercial
             <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="subnav" id="sub-crm">
             <div class="ni sub" onclick="go('dash')" id="ni-dash">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
-                Dashboard Comercial
+                Dashboard
             </div>
             <div class="ni sub" onclick="novoOrcamento()" id="ni-ferr-orcamento">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2 2 4-4M7 3h10a1 1 0 011 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z"/></svg>
                 Novo Orçamento
             </div>
-            <div class="ni sub" onclick="go('novo')" id="ni-novo">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Orçamento Oficina Inteligente
-            </div>
             <div class="ni sub" onclick="go('lista')" id="ni-lista">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h7"/></svg>
                 Orçamentos
-            </div>
-            <div class="ni sub" onclick="go('relatorios')" id="ni-relatorios">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V9m4 8V5m4 12v-4M4 21h16"/></svg>
-                Relatórios
-            </div>
-            <div class="ni sub" onclick="go('carteira')" id="ni-carteira">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18v12H3zM3 7l2-3h14l2 3M8 12h8"/></svg>
-                Carteira aberta
-                <span class="nbadge" id="nb-cart">0</span>
-            </div>
-            <div class="ni sub gestor-only" onclick="go('relfu')" id="ni-relfu">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V9m4 8V5m4 12v-4M4 21h16"/></svg>
-                Relatório de Follow-up
             </div>
             <div class="ni sub" onclick="go('followup')" id="ni-followup">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Follow-up
                 <span class="nbadge" id="nb">0</span>
             </div>
-            <div class="ni sub gestor-only" onclick="go('importar')" id="ni-importar">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
-                Importar Orçamentos
+            <div class="ni sub" onclick="go('carteira')" id="ni-carteira">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18v12H3zM3 7l2-3h14l2 3M8 12h8"/></svg>
+                Carteira aberta
+                <span class="nbadge" id="nb-cart">0</span>
             </div>
-            <div class="ni sub gestor-only" onclick="go('importar-clientes')" id="ni-importar-clientes">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>
-                Importar Clientes
+            <div class="ni sub" onclick="go('relatorios')" id="ni-relatorios">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V9m4 8V5m4 12v-4M4 21h16"/></svg>
+                Relatórios
             </div>
-            <div class="ni sub gestor-only" onclick="go('catalogo')" id="ni-catalogo">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10M18 15l2 2 3-3"/></svg>
-                Peças e Serviços
+            <div class="ni sub gestor-only" onclick="go('relfu')" id="ni-relfu">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V9m4 8V5m4 12v-4M4 21h16"/></svg>
+                Relatório de Follow-up
+            </div>
+            <div class="ni sub" onclick="go('novo')" id="ni-novo">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Orçamento do OI
             </div>
         </div>
-        <div class="topic" onclick="toggleTopic(this,'sub-ferr')">
+        <div class="topic" data-sub="sub-ferr" onclick="toggleTopic(this,'sub-ferr')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 005.4-5.4l-2.1 2.1-2.4-.6-.6-2.4z"/></svg>
-            Ferramentas de Vendas
+            Ferramentas
             <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="subnav" id="sub-ferr">
@@ -735,31 +800,68 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
                 Revisão Preço Fixo
             </div>
         </div>
-        <div class="ni" id="ni-crm" onclick="go('crm')" style="padding:11px 18px;font-weight:600;display:none">
+        <div class="ni" id="ni-crm" onclick="go('crm')" style="display:none">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z"/></svg>
             CRM Dias
         </div>
-        <div class="ni gestor-only" id="ni-rh" onclick="go('rh')" style="padding:11px 18px;font-weight:600">
+        <div class="ni gestor-only" id="ni-rh" onclick="go('rh')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M13 7a4 4 0 11-8 0 4 4 0 018 0zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-            RH — Gestão de Pessoas
+            RH
+        </div>
+        <div class="nav-sep gestor-only"></div>
+        <div class="topic gestor-only" data-sub="sub-adm" onclick="toggleTopic(this,'sub-adm')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 13a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+            Administração
+            <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="subnav" id="sub-adm">
+            <div class="ni sub admin-only" onclick="go('metas')" id="ni-metas">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke-width="2"/><circle cx="12" cy="12" r="0.6" stroke-width="2"/></svg>
+                Abertura de mês
+            </div>
+            <div class="ni sub gestor-only" onclick="go('config')" id="ni-config">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 13a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+                Configurações
+            </div>
+            <div class="ni sub gestor-only" onclick="go('servicos-cfg')" id="ni-servicos-cfg">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 13a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+                Config Serviços
+            </div>
+            <div class="ni sub gestor-only" onclick="go('catalogo')" id="ni-catalogo">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10M18 15l2 2 3-3"/></svg>
+                Peças e Serviços
+            </div>
+            <div class="ni sub gestor-only" onclick="go('importar')" id="ni-importar">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
+                Importar Orçamentos
+            </div>
+            <div class="ni sub gestor-only" onclick="go('importar-clientes')" id="ni-importar-clientes">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>
+                Importar Clientes
+            </div>
+            <div class="ni sub gestor-only" onclick="go('importar-svc')" id="ni-importar-svc">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
+                Importar Serviços
+            </div>
         </div>
     </nav>
-    <div style="padding:0 0 8px">
-        <button class="logout-btn" onclick="abrirTrocarSenha()">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-            Trocar senha
-        </button>
-        <button class="logout-btn" onclick="logout()">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            Sair
-        </button>
-        <div id="user-info" style="padding:0 18px 10px;font-size:10.5px;color:rgba(255,255,255,.3)"></div>
-        <div id="app-versao" style="padding:0 18px 12px;font-size:10.5px;color:rgba(255,255,255,.3)">versão 2026-10-19 · link só com itens aprovados</div>
-    </div>
-    <div class="sfooter">
-        <p>Dias Centro Automotivo · v3.0</p>
+    <div class="sb-user">
+        <div class="sb-av" id="sb-av">·</div>
+        <div class="sb-who"><div id="user-info"></div><div id="app-versao">versão 2026-11-25 · menu novo</div></div>
+        <button class="sb-ic" onclick="abrirTrocarSenha()" title="Trocar senha" aria-label="Trocar senha"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></button>
+        <button class="sb-ic" onclick="logout()" title="Sair" aria-label="Sair"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></button>
     </div>
 </aside>
+
+<!-- ═══ BARRA INFERIOR (celular) ═══ -->
+<nav class="bnav" id="bnav">
+    <button data-pg="home" onclick="go('home')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10"/></svg>Início</button>
+    <button data-pg="resultados" onclick="go('resultados')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 14l3-3 3 3 5-6"/></svg>Resultados</button>
+    <button data-pg="lista" onclick="go('lista')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h7"/></svg>Orçamentos</button>
+    <button data-pg="followup" onclick="go('followup')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Follow-up<span class="bbadge" id="bnav-nb"></span></button>
+    <button data-pg="menu" onclick="toggleMenu()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>Menu</button>
+</nav>
+
 
 <!-- ═══ MODAL TROCAR SENHA ═══ -->
 <div class="ov" id="pw-modal" onclick="if(event.target===this)fecharTrocarSenha()">
@@ -5877,5 +5979,59 @@ async function plcReativar(id){
     </div>
   </div>
 </div>
+
+<script>
+/* ══ MENU NOVO (25/11/2026) ══ */
+(function(){
+  // rótulos em <span> para poder recolher em ícones; title vira dica no modo recolhido
+  document.querySelectorAll('.sidebar .nav .ni, .sidebar .nav .topic').forEach(function(el){
+    Array.prototype.slice.call(el.childNodes).forEach(function(n){
+      if(n.nodeType===3 && n.textContent.trim()){
+        var sp=document.createElement('span'); sp.className='sb-lbl'; sp.textContent=n.textContent.trim();
+        el.replaceChild(sp,n); el.setAttribute('title',sp.textContent);
+      }
+    });
+  });
+  try{ if(localStorage.getItem('central_rail')==='1') document.body.classList.add('rail'); }catch(e){}
+  // avatar com a inicial do usuário
+  var ui=document.getElementById('user-info'), av=document.getElementById('sb-av');
+  function syncAv(){ if(ui&&av){ var t=(ui.textContent||'').trim(); av.textContent=t?t.charAt(0):'·'; } }
+  if(ui) new MutationObserver(syncAv).observe(ui,{childList:true,characterData:true,subtree:true});
+  // contador do follow-up espelhado na barra inferior
+  var nb=document.getElementById('nb'), bb=document.getElementById('bnav-nb');
+  function syncNb(){ if(nb&&bb){ var v=(nb.textContent||'').trim(); var vis=nb.style.display!=='none'&&v&&v!=='0'; bb.textContent=v; bb.style.display=vis?'inline-block':'none'; } }
+  if(nb) new MutationObserver(syncNb).observe(nb,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['style']});
+  syncAv(); syncNb();
+})();
+function toggleRail(){
+  var on=!document.body.classList.contains('rail');
+  document.body.classList.toggle('rail',on);
+  try{ localStorage.setItem('central_rail',on?'1':'0'); }catch(e){}
+}
+// acordeão: abre um grupo e fecha os outros. No modo recolhido, clicar no grupo abre o menu.
+function toggleTopic(el,id){
+  if(document.body.classList.contains('rail') && window.innerWidth>860){ toggleRail(); el.classList.remove('open'); }
+  var abrir=!el.classList.contains('open');
+  document.querySelectorAll('.sidebar .topic.open').forEach(function(t){ if(t!==el){ t.classList.remove('open'); var s=document.getElementById(t.getAttribute('data-sub')); if(s) s.classList.remove('open'); } });
+  el.classList.toggle('open',abrir);
+  var s=document.getElementById(id); if(s) s.classList.toggle('open',abrir);
+}
+(function(){
+  var _go=go;
+  go=function(pg){
+    _go.apply(this,arguments);
+    // mantém só o grupo da tela atual aberto
+    var on=document.getElementById('ni-'+pg), sn=on&&on.closest('.subnav');
+    document.querySelectorAll('.sidebar .topic').forEach(function(t){
+      var sub=document.getElementById(t.getAttribute('data-sub'));
+      var dono=sn&&sub===sn;
+      t.classList.toggle('has-on',!!dono);
+      if(sn){ t.classList.toggle('open',dono); if(sub) sub.classList.toggle('open',dono); }
+    });
+    document.querySelectorAll('#bnav button').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-pg')===pg); });
+  };
+  document.querySelectorAll('#bnav button[data-pg="home"]').forEach(function(b){ b.classList.add('on'); });
+})();
+</script>
 </body>
 </html>
