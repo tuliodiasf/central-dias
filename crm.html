@@ -598,7 +598,7 @@ async function abrirFicha(id,refresh){
      <div class="row" style="margin-top:6px">${l.recorrente?'<span class="badge b-blue">Recorrente</span>':campBadge(l)} <span class="badge b-gray">${ETAPA_LBL[l.etapa]}</span> <button class="btn bs bsm" onclick="marcarRecorrente(${id},${!l.recorrente})">${l.recorrente?'Não é recorrente':'Marcar recorrente'}</button> ${l.responsavel?'<span class="muted">Atendendo: <b>'+esc(nomeUser(l.responsavel))+'</b></span>':`<button class="btn bs bsm" onclick="patch(${id},{responsavel:U.email},['responsavel','Assumiu o atendimento'])">Assumir</button>`}</div></div>
      <button class="btn bs bsm" onclick="fecharFicha()" aria-label="Fechar">✕</button></div>
    <div class="db">
-     <div class="row">${l.telefone?`<a class="btn bg bsm" target="_blank" href="https://wa.me/${esc(l.telefone)}">Abrir no WhatsApp</a>`:''}<button class="btn bs bsm" onclick="try{parent.go('novo')}catch(e){toast('Abra Novo Orçamento no menu da Central')}">Fazer orçamento no hub</button></div>
+     <div class="row">${l.telefone?`<button class="btn bp bsm" onclick="verConversa('${esc(l.telefone)}')">💬 Ver conversa e responder</button><a class="btn bs bsm" target="_blank" href="https://wa.me/${esc(l.telefone)}">Abrir no WhatsApp</a>`:''}<button class="btn bs bsm" onclick="try{parent.go('novo')}catch(e){toast('Abra Novo Orçamento no menu da Central')}">Fazer orçamento no hub</button></div>
      <div class="sec"><h4>Etapa</h4><div class="pills">${etapasPill}</div>
        ${l.etapa==='agendado'&&l.agendado_para?`<div class="box ${noShow(l)?'red':'gray'}" style="margin-top:8px"><b>${esc(quando(l.agendado_para))}</b>${noShow(l)?' · passou do horário sem OS':''} <a href="#" onclick="modalAgendar(${id});return false">remarcar</a></div>`:''}
        ${l.etapa==='perdido'?`<div class="box red" style="margin-top:8px">Perdido: <b>${esc(l.motivo_perda||'')}</b> na etapa ${esc(ETAPA_LBL[l.etapa_perda]||'')}${l.reativar_em?' · reativar em '+dia(l.reativar_em):''}${l.obs_perda?'<br>'+esc(l.obs_perda):''}</div>`:''}
@@ -788,6 +788,8 @@ function renderPainel(){
 
 /* ═══ CONVERSAS ═══ */
 let CV={filtro:'leads',fone:null,lista:[],q:''};
+/* da ficha do lead direto para a conversa dele na tela Conversas */
+function verConversa(f){fecharFicha();CV.q='';CV.fone=f;CV.foco=f;ir('conversas');}
 function convBuscar(v){CV.q=v;clearTimeout(window._cvq);window._cvq=setTimeout(()=>{CV.fone=null;renderConversas(true);},350);}
 async function renderConversas(daBusca){
   const box=$('conversas');
@@ -802,6 +804,10 @@ async function renderConversas(daBusca){
     c.grupo=c.ign?grpIgn(c.ign):(!l?'outros':(l.etapa==='triagem'?'triagem':(l.origem==='base'?'base':'leads')));return c;});
   const cont=g=>CV.lista.filter(c=>c.grupo===g).length;
   if(daBusca&&CV.q&&!cont(CV.filtro)){const g=['leads','triagem','base','outros','fornecedores','interno','naolead'].find(k=>cont(k));if(g)CV.filtro=g;}
+  if(CV.foco){const alvo=CV.lista.find(c=>c.fone===CV.foco);
+    if(alvo){CV.filtro=alvo.grupo;CV.fone=alvo.fone;CV.foco=null;}
+    else if(!CV.q){CV.q=CV.foco.slice(-8);CV.fone=CV.foco;CV.foco=null;return renderConversas(true);} // conversa antiga: busca pelo número
+    else CV.foco=null;}
   const lista=CV.lista.filter(c=>c.grupo===CV.filtro);
   if(!CV.fone||!CV.lista.some(c=>c.fone===CV.fone))CV.fone=(lista[0]||{}).fone||null;
   box.innerHTML=`<div style="display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:14px;align-items:start" class="cv-grid">
