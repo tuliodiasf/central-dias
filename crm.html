@@ -849,7 +849,7 @@ function cvConteudo(x){
   const cap=x.texto?`<div style="margin-top:4px">${marcar(x.texto)}</div>`:'';
   const md=x.midia;
   if(md){
-    if(md.falhou&&!md.path)return `<div class="muted" style="font-size:12.5px">${{audio:'🎤 Áudio',image:'🖼️ Imagem',video:'🎬 Vídeo',document:'📄 Documento',sticker:'Figurinha'}[md.tipo]||'Arquivo'} antigo: o link da YCloud já expirou. Veja no celular.</div>${cap}`;
+    if(md.falhou&&!md.path)return `<div class="muted" style="font-size:12.5px">${{audio:'🎤 Áudio',image:'🖼️ Imagem',video:'🎬 Vídeo',document:'📄 Documento',sticker:'Figurinha'}[md.tipo]||'Arquivo'}: arquivo antigo, o link da YCloud já expirou. Veja no celular.</div>${cap}`;
     return `<div class="cv-midia" data-msg="${x.id}" data-path="${esc(md.path||'')}" data-tipo="${esc(md.tipo)}" data-nome="${esc(md.nome||'')}"><span class="muted" style="font-size:12.5px">Carregando ${{audio:'áudio',image:'imagem',video:'vídeo',document:'documento',sticker:'figurinha'}[md.tipo]||'arquivo'}...</span></div>${cap}`;
   }
   if(x.tipo==='unsupported')return `<div class="muted" style="font-size:12.5px;font-style:italic">Mensagem que o WhatsApp não repassa para sistemas (visualização única, enquete ou recurso novo). Veja no celular.</div>`;
