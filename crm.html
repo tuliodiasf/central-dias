@@ -818,10 +818,24 @@ async function abrirThread(f){
 /* Envio pelo WhatsApp oficial (YCloud) dentro da janela de 24h */
 function cvJanela(data){const u=[...(data||[])].reverse().find(x=>x.direcao==='in');if(!u)return {aberta:false,resta:0};const ms=24*3600e3-(Date.now()-new Date(u.criado_em));return {aberta:ms>0,resta:ms};}
 function cvCompositor(f,data){const j=cvJanela(data);
-  if(!j.aberta)return `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;font-size:13px"><b>Janela de 24h fechada.</b> O cliente não manda mensagem há mais de 24h. Pelas regras do WhatsApp, fora da janela só sai mensagem com template aprovado. Por enquanto responda pelo app.</div>`;
+  if(!j.aberta)return `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;font-size:13px"><b>Janela de 24h fechada.</b> O cliente não manda mensagem há mais de 24h. Pelas regras do WhatsApp, fora da janela só sai mensagem com template aprovado. Por enquanto responda pelo app.</div>${cvCopilotoBox(f,false)}`;
   const h=Math.floor(j.resta/3600e3),m=Math.floor(j.resta%3600e3/6e4);
   return `<div style="margin-top:10px"><div class="row" style="gap:8px;align-items:flex-end"><textarea id="cv-txt" rows="2" placeholder="Escreva a resposta. Enter envia, Shift+Enter pula linha." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvEnviar('${esc(f)}')}" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;min-height:44px;max-height:180px;resize:vertical;font:inherit"></textarea><button id="cv-env" class="btn bp" onclick="cvEnviar('${esc(f)}')">Enviar</button></div>
-   <div class="muted" style="font-size:12px;margin-top:4px">Sai pelo número oficial da oficina e aparece também no WhatsApp do celular. Janela aberta por mais ${h}h${String(m).padStart(2,'0')}.</div></div>`;}
+   <div class="muted" style="font-size:12px;margin-top:4px">Sai pelo número oficial da oficina e aparece também no WhatsApp do celular. Janela aberta por mais ${h}h${String(m).padStart(2,'0')}.</div></div>${cvCopilotoBox(f,true)}`;}
+/* Copiloto de IA: sugere a próxima resposta; nunca envia sozinho */
+function cvCopilotoBox(f,aberta){return `<div style="margin-top:8px;padding:10px 12px;border-radius:8px;background:#f5f3ff;border:1px solid #ddd6fe">
+  <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><button id="cv-ia" class="btn bs bsm" style="border-color:#a78bfa;color:#5b21b6" onclick="cvSugerir('${esc(f)}',${aberta})">✨ Sugerir resposta</button><input id="cv-ia-inst" placeholder="Orientação opcional (ex.: oferecer quinta às 8h)" style="flex:1;min-width:180px;border:1px solid #ddd6fe;border-radius:8px;padding:6px 10px;font:inherit;font-size:13px"></div>
+  <div id="cv-ia-out"></div></div>`;}
+async function cvSugerir(f,aberta){const b=$('cv-ia'),out=$('cv-ia-out');if(!b||b.disabled)return;
+  b.disabled=true;b.textContent='Pensando...';out.innerHTML='';
+  try{const {data,error}=await supa.functions.invoke('crm-copiloto',{body:{fone:f,instrucao:($('cv-ia-inst')||{}).value||''}});
+    let msg=data&&data.erro;if(error&&!msg){try{const r=await error.context.json();msg=r.erro;}catch(e){msg=error.message;}}
+    if(msg||!data||!data.sugestao){out.innerHTML=`<div class="red-t" style="font-size:13px;margin-top:6px">${esc(msg||'Sem sugestão. Tente de novo.')}</div>`;return;}
+    window._cvSug=data.sugestao;
+    out.innerHTML=`<div style="background:#fff;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13.5px;white-space:pre-wrap">${esc(data.sugestao)}</div><div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap"><button class="btn bp bsm" onclick="navigator.clipboard.writeText(window._cvSug);toast('Copiado. Cole no WhatsApp.')">Copiar</button>${aberta?`<button class="btn bs bsm" onclick="const t=$('cv-txt');if(t){t.value=window._cvSug;t.focus();}">Usar na caixa de envio</button>`:''}<span class="muted" style="font-size:12px">Revise antes de mandar. A IA não envia nada sozinha.</span></div>`;
+  }catch(e){out.innerHTML=`<div class="red-t" style="font-size:13px;margin-top:6px">Erro: ${esc(e.message)}</div>`;}
+  finally{b.disabled=false;b.textContent='✨ Sugerir de novo';}
+}
 async function cvEnviar(f){const t=$('cv-txt'),b=$('cv-env');if(!t||!t.value.trim()||b.disabled)return;
   const texto=t.value.trim();b.disabled=true;b.textContent='Enviando...';
   try{const {data,error}=await supa.functions.invoke('whatsapp-enviar',{body:{fone:f,texto}});
