@@ -975,6 +975,15 @@ async function convVoltarLead(f){
 /* ═══ CONFIGURAÇÕES ═══ */
 function waNumero(){return (CFG.whatsapp_numero||'5534998131003');}
 function linkCamp(c){return 'https://wa.me/'+waNumero()+'?text='+encodeURIComponent(c.mensagem);}
+async function cfgWebhook(){const box=$('cf-wh');if(!box)return;
+  const {data,error}=await supa.rpc('crm_webhook_url');
+  if(error){box.innerHTML='<h3>Webhook do WhatsApp (YCloud)</h3><div class="muted">Só gestores veem.</div>';return;}
+  const nova=data.ultimo_evento_chave_nova, ant=data.ultimo_evento_chave_antiga;
+  const st=nova&&(!ant||new Date(nova)>new Date(ant))?'<span class="badge b-green">YCloud já usa o endereço novo</span>':'<span class="badge b-yellow">YCloud ainda usa o endereço antigo</span>';
+  box.innerHTML=`<h3>Webhook do WhatsApp (YCloud)</h3><div class="muted" style="margin:-6px 0 10px">Endereço que a YCloud usa para mandar as mensagens ao CRM. É uma senha: não compartilhe.</div>
+   <div class="row" style="gap:8px;flex-wrap:wrap"><input readonly value="••••••••••••••••••••" style="flex:1;min-width:220px;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px"><button class="btn bk bsm" onclick="navigator.clipboard.writeText(${JSON.stringify(data.url).replace(/"/g,'&quot;')});toast('Endereço copiado. Cole na YCloud.')">Copiar endereço novo</button></div>
+   <div style="margin-top:8px">${st} <span class="muted" style="font-size:12px">${nova?'último evento pelo novo: '+dt(nova):''}${ant?' · pelo antigo: '+dt(ant):''}</span></div>
+   <div class="muted" style="font-size:12px;margin-top:8px">Na YCloud: Developers → Webhooks → editar o endpoint → colar o endereço novo e marcar também o evento <b>whatsapp.message.updated</b>.</div>`;}
 function renderConfig(){
   const listas=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
   <div class="card"><h3>Motivos de perda</h3><div class="muted" style="margin:-6px 0 10px">Aparecem para escolher ao marcar Perdido. Um por linha.</div>
@@ -990,6 +999,8 @@ function renderConfig(){
    </tbody></table></div>
    <div class="fi" style="max-width:320px;margin-top:12px"><label>Número do WhatsApp nos links</label><div class="row"><input id="cf-wa" value="${esc(waNumero())}" style="flex:1"><button class="btn bs bsm" onclick="salvarCfg('whatsapp_numero',fone($('cf-wa').value))">Salvar</button></div></div></div>
 
+  <div class="card" id="cf-wh"><h3>Webhook do WhatsApp (YCloud)</h3><div class="muted">Carregando...</div></div>
+
   <div class="card"><h3>Régua de follow up</h3><div class="muted" style="margin:-6px 0 12px">Conta a partir do primeiro contato (quando o lead entra em Atendimento ou Orçamento Enviado). Cliente respondeu: o contador zera. Depois do último, prazo de 24h e vai para Nutrição.</div>
    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">${r.map((h,i)=>`<div class="fi"><label>FUP ${i+1} (horas)</label><input type="number" min="1" class="rg-h" value="${h}"></div>`).join('')}</div>
    <div class="row" style="margin-top:10px"><button class="btn bs bsm" onclick="regAdd(1)">+ Follow up</button><button class="btn bs bsm" onclick="regAdd(-1)">− Follow up</button><button class="btn bp bsm" onclick="salvarRegua()">Salvar régua</button><span class="muted">Hoje: ${r.map(horasTxt).join(' · ')}</span></div></div>
@@ -999,6 +1010,7 @@ function renderConfig(){
   <div class="card"><h3>Contatos ignorados (${IGN.length})</h3><div class="muted" style="margin:-6px 0 10px">Fornecedores, equipe e parceiros. Nunca viram lead e a IA nunca responde. Grupos já ficam de fora sozinhos.</div>
    <div class="row" style="margin-bottom:12px"><input id="ig-tel" placeholder="Telefone" style="border:1.5px solid var(--border);border-radius:8px;padding:9px;min-height:40px"><input id="ig-nome" placeholder="Nome" style="border:1.5px solid var(--border);border-radius:8px;padding:9px;min-height:40px"><select id="ig-tipo" style="border:1.5px solid var(--border);border-radius:8px;padding:9px;min-height:40px"><option>Fornecedor</option><option>Interno</option><option>Parceiro</option><option>Outro</option></select><button class="btn bk bsm" onclick="addIgn()">Adicionar</button></div>
    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${IGN.map(i=>`<div class="row" style="justify-content:space-between;border:1px solid var(--border);border-radius:10px;padding:9px 11px"><span><b>${esc(i.nome)}</b><br><span class="muted">${esc(i.tipo)} · ${esc(foneFmt(i.telefone))}</span></span><button class="btn bs bsm" onclick="delIgn('${esc(i.telefone)}')">Tirar</button></div>`).join('')||'<div class="muted">Nenhum ainda.</div>'}</div></div>`;
+  cfgWebhook();
 }
 function regAdd(d){const r=[...document.querySelectorAll('.rg-h')].map(i=>Number(i.value)||0);if(d>0)r.push((r[r.length-1]||24)*2);else if(r.length>1)r.pop();CFG.regua_fup_horas=r;renderConfig();}
 async function salvarRegua(){const r=[...document.querySelectorAll('.rg-h')].map(i=>Number(i.value)).filter(n=>n>0);for(let i=1;i<r.length;i++)if(r[i]<=r[i-1])return toast('Cada follow up precisa ser depois do anterior');await salvarCfg('regua_fup_horas',r);}
