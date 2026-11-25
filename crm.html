@@ -328,7 +328,12 @@ function filtroBusca(l){
 function noShow(l){return l.etapa==='agendado'&&l.agendado_para&&new Date(l.agendado_para)<new Date(Date.now()-60*60*1000)&&!l.os_numero;}
 function semResposta(l){return l.etapa==='novo'&&!l.ultima_msg_nossa;}
 /* cliente mandou mensagem depois da nossa última: está esperando resposta (card laranja, vai para o topo) */
-function esperando(l){return !!l.ultima_msg_cliente&&!['ganho','perdido','ignorado','triagem'].includes(l.etapa)&&(!l.ultima_msg_nossa||new Date(l.ultima_msg_cliente)>new Date(l.ultima_msg_nossa));}
+function esperando(l){if(!l.ultima_msg_cliente||['ganho','perdido','ignorado','triagem'].includes(l.etapa))return false;
+  if(l.ultima_msg_nossa&&new Date(l.ultima_msg_cliente)<=new Date(l.ultima_msg_nossa))return false;
+  if(l.ia_resp===false&&l.ia_em&&new Date(l.ia_em)>=new Date(l.ultima_msg_cliente))return false; // IA leu: era só "ok/obrigado"
+  return true;}
+const TEMP={quente:['🔥','Quente','#fee2e2','#b91c1c'],morno:['🟡','Morno','#fef3c7','#92400e'],frio:['🧊','Frio','#e0f2fe','#075985']};
+const TEMP_ORD={quente:0,morno:1,frio:3};const tOrd=l=>l.ia_temp in TEMP_ORD?TEMP_ORD[l.ia_temp]:2;
 function renderKanban(){
   const nR=LEADS.filter(l=>l.recorrente&&!['ganho','perdido','nutricao','ignorado'].includes(l.etapa)).length, nT=LEADS.filter(l=>!l.recorrente&&!['ganho','perdido','nutricao','ignorado'].includes(l.etapa)).length;
   $('kt-pills').innerHTML=[['todos','Todos',nR+nT],['trafego','Tráfego',nT],['recorrentes','Recorrentes',nR]].map(([k,lb,n])=>`<button class="pill ${KT===k?'on':''}" onclick="setKT('${k}')">${lb} ${n}</button>`).join('');
@@ -380,7 +385,10 @@ function cardH(l){
   const es=esperando(l);
   return `<div class="kc ${es?'esp':late?'late':''}" draggable="true" ondragstart="dragI(event,${l.id})" onclick="abrirFicha(${l.id})">
     ${es?`<div class="esp-tag">💬 Cliente respondeu ${ha(l.ultima_msg_cliente)==='agora'?'agora':'há '+ha(l.ultima_msg_cliente)}</div>`:''}${top}<div class="t"><span class="nm">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</span>${l.recorrente?'<span class="badge b-blue">Recorrente</span>':campBadge(l)}</div>
+    ${l.ia_temp&&TEMP[l.ia_temp]?`<div style="margin-top:5px"><span title="Leitura da IA" style="display:inline-block;background:${TEMP[l.ia_temp][2]};color:${TEMP[l.ia_temp][3]};font-size:11.5px;font-weight:700;border-radius:6px;padding:1px 7px">${TEMP[l.ia_temp][0]} ${TEMP[l.ia_temp][1]}</span></div>`:''}
     ${linha?`<div class="ln">${esc(linha)}</div>`:''}
+    ${l.ia_linha?`<div class="ln" style="color:#4b5563;font-style:italic">${esc(l.ia_linha)}</div>`:''}
+    ${l.ia_acao&&!['ganho','perdido'].includes(l.etapa)?`<div class="ln" style="color:#5b21b6;font-size:12px">→ ${esc(l.ia_acao)}</div>`:''}
     ${l.valor_orcamento?`<div class="ln"><b>${brl(l.valor_orcamento)}</b></div>`:''}
     ${meio}${pe}
     ${l.ia_resumo?'<div class="badge b-purple" style="margin-top:6px">Pré-atendido pela IA</div>':''}
@@ -397,7 +405,9 @@ function renderBoard(){
     if(k==='agendado')cs.sort((a,b)=>new Date(a.agendado_para||'2999-01-01')-new Date(b.agendado_para||'2999-01-01')); // mais perto em cima, sem data no fim
     else if(k==='atendimento'||k==='orcamento')cs.sort((a,b)=>new Date(a.fup_proximo||'2999-01-01')-new Date(b.fup_proximo||'2999-01-01'));
     // quem está esperando resposta sobe para o topo (o que espera há mais tempo primeiro); o resto mantém a ordem
-    const esp=cs.filter(esperando).sort((a,b)=>new Date(a.ultima_msg_cliente)-new Date(b.ultima_msg_cliente)); cs=esp.concat(cs.filter(l=>!esperando(l)));
+    const esp=cs.filter(esperando).sort((a,b)=>tOrd(a)-tOrd(b)||new Date(a.ultima_msg_cliente)-new Date(b.ultima_msg_cliente));
+    let resto=cs.filter(l=>!esperando(l)); if(k!=='agendado')resto=resto.map((l,i)=>[l,i]).sort((a,b)=>tOrd(a[0])-tOrd(b[0])||a[1]-b[1]).map(x=>x[0]);
+    cs=esp.concat(resto);
     return `<section class="col ${k==='triagem'?'tri':''}" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropI(event,'${k}');this.classList.remove('over')">
       <div class="colh"><span>${lbl}</span><span><span class="n">${cs.length}</span>${esp.length?`<span class="esp-n" title="Clientes esperando resposta">💬 ${esp.length}</span>`:''}</span></div>
       ${k==='triagem'?'<div class="muted" style="padding:0 4px 8px">Contatos sem código de campanha. Decida com um clique.</div>':''}
