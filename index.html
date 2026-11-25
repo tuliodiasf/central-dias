@@ -686,6 +686,35 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
   .hcard p{font-size:11.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .hcard .arrow{display:none}
 }
+
+/* ══ CELULAR: telas internas (25/11/2026) ══ */
+@media(max-width:760px){
+  .ptitle{font-size:19px}
+  .card{padding:14px}
+  .met{padding:12px 13px}
+  .grid2,.grid3{grid-template-columns:1fr!important;gap:12px}
+  .mets,.mets[style]{grid-template-columns:repeat(2,1fr)!important;gap:10px}
+  .funnel{grid-template-columns:repeat(2,1fr)}
+  /* corrida: legenda "realizado / no ritmo / meta" quebra linha em vez de espremer */
+  .page [style*="justify-content:space-between"][style*="font-size:11px"]{flex-wrap:wrap;gap:2px 12px}
+  .rchase{flex-wrap:wrap;gap:4px 12px;padding:12px}
+  .rchase .rbig{font-size:22px}
+  .rchase .rtxt{flex:1 1 160px}
+  .rsuperbig{font-size:13.5px;padding:12px 14px}
+  /* tabelas largas rolam de lado dentro do card, sem estourar a tela */
+  .main table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .main table thead,.main table tbody{white-space:nowrap}
+  .svc .tg{padding:7px 10px}
+  .svc .scorehead{flex-wrap:wrap;gap:8px}
+  .fucard{flex-wrap:wrap;gap:10px!important;padding:12px 14px!important}
+  .fucard > div:first-child{flex:1 1 100%!important}
+  .fucard > div:last-child{width:100%}
+  .fucard > div:last-child > *{flex:1;justify-content:center}
+  /* aviso de follow-up vai para baixo, sem tampar o título */
+  #aviso-ret{top:auto;bottom:calc(76px + env(safe-area-inset-bottom));left:10px;right:10px;transform:none;max-width:none;font-size:12.5px;padding:10px 38px 10px 12px}
+  .ov{padding:10px}
+  .ph > div:last-child select,.ph select{max-width:100%}
+}
 </style>
 </head>
 <body>
@@ -1662,7 +1691,7 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 <!-- ── FERRAMENTAS · ORÇAMENTO ── -->
 <div id="pg-ferr-orcamento" class="page">
     <div class="ph"><div><div class="ptitle">Novo Orçamento</div><div class="psub">monte o orçamento no padrão Dias e gere o PDF pro cliente</div></div></div>
-    <iframe src="gerador_orcamento_dias.html?v=20261005" title="Orçamento Dias" style="width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
+    <iframe src="gerador_orcamento_dias.html?v=20261125" title="Orçamento Dias" style="width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
 </div>
 
 </main>
@@ -3923,7 +3952,7 @@ function renderFu() {
         const urgLabel = sit.label;
         const msg      = encodeURIComponent(`Olá ${o.cli}, tudo bem? Aqui é da Dias Centro Automotivo. Passando para saber se já conseguiu dar andamento no orçamento ${o.num}. Posso ajudar com alguma coisa? 😊`);
         return `
-        <div class="card" style="margin-bottom:10px;border-left:4px solid ${urg==='alta'?'var(--red)':urg==='media'?'var(--yellow)':'var(--green)'};display:flex;align-items:center;gap:16px;padding:14px 18px">
+        <div class="card fucard" style="margin-bottom:10px;border-left:4px solid ${urg==='alta'?'var(--red)':urg==='media'?'var(--yellow)':'var(--green)'};display:flex;align-items:center;gap:16px;padding:14px 18px">
             <div style="flex:1">
                 <div style="font-weight:800;font-size:14px">${escH(o.cli)} <span class="chip">${escH(o.num)}</span> <span style="font-size:11px;color:var(--gray);font-weight:400">${urgLabel}</span></div>
                 <div style="font-size:12px;color:var(--gray);margin-top:3px">${R$(o.val)} · ${escH(primeiroNome(o.vend))} · Retorno: ${o.prev?dtBR(o.prev):'—'}</div>
@@ -4543,7 +4572,7 @@ async function voltarDoGerador(id){
     if(id && db.orcs.find(function(x){ return x.id==id; })){ abrirModal(id); }
     else if(id){ toast('Orçamento não encontrado na lista (pode ter sido excluído).'); }
 }
-var GERADOR_SRC='gerador_orcamento_dias.html?v=20261005';
+var GERADOR_SRC='gerador_orcamento_dias.html?v=20261125';
 // Vigia da PRIMEIRA carga: se o iframe estático não carregou (tela cinza quebrada do print),
 // ou se o navegador está com uma versão antiga do gerador em cache (sem a ponte), recarrega.
 setTimeout(function(){ if(!__gerPronto) recarregarGerador(''); }, 10000);

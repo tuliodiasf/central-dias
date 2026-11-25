@@ -21,6 +21,7 @@
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .full{grid-column:1/-1}
+  @media screen and (max-width:600px){ .grid3{grid-template-columns:1fr 1fr} .card{padding:14px 12px} .card table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch} .card table td input{min-width:70px} .card table td:nth-child(2) input,.card table td:nth-child(2) textarea{min-width:190px} }
   label{display:block;font-size:11px;font-weight:700;color:var(--cinza);margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
   input,select,textarea{width:100%;padding:7px 9px;border:1px solid var(--linha);border-radius:7px;font-size:13px;font-family:inherit;background:#fff}
   textarea{resize:vertical}
