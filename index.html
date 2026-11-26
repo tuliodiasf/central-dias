@@ -1181,6 +1181,7 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
     <div class="tabs" id="rel-tabs">
         <div class="tab on" onclick="relTab(0)">✅ Orçamentos Fechados</div>
         <div class="tab" onclick="relTab(1)">❌ Vendas Perdidas</div>
+        <div class="tab" onclick="relTab(2)">📦 Kits / pacotes</div>
     </div>
     <div class="filt" style="margin-top:14px">
         <input type="text" id="rel-busca" placeholder="Buscar por número, cliente..." oninput="renderRelatorios()">
@@ -1212,6 +1213,7 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
             </div>
         </div>
     </div>
+    <div class="tpanel" id="reltp-2" style="padding:0"><div id="rel-kits"></div></div>
     <div class="tpanel" id="reltp-1" style="padding:0">
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0;flex-wrap:wrap;gap:8px">
@@ -1691,7 +1693,7 @@ hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 <!-- ── FERRAMENTAS · ORÇAMENTO ── -->
 <div id="pg-ferr-orcamento" class="page">
     <div class="ph"><div><div class="ptitle">Novo Orçamento</div><div class="psub">monte o orçamento no padrão Dias e gere o PDF pro cliente</div></div></div>
-    <iframe src="gerador_orcamento_dias.html?v=20261125" title="Orçamento Dias" style="width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
+    <iframe src="gerador_orcamento_dias.html?v=20261126k" title="Orçamento Dias" style="width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
 </div>
 
 </main>
@@ -1827,6 +1829,8 @@ function dbToJs(row) {
         fus:         row.fus || [],
         anexos:      row.anexos || [],
         itens:       row.itens || [],
+        kits:        row.kits || [],
+        kitsRem:     row.kits_removidos || [],
         osErp:       row.os_erp || '',
         origem:      row.origem || '',
         valorAprovado: row.valor_aprovado,
@@ -3827,9 +3831,32 @@ function relTab(i){
     var t0=document.getElementById('reltp-0'), t1=document.getElementById('reltp-1');
     if(t0) t0.classList.toggle('on', i===0);
     if(t1) t1.classList.toggle('on', i===1);
+    var t2=document.getElementById('reltp-2'); if(t2) t2.classList.toggle('on', i===2);
+    if(i===2) renderRelKits();
+}
+// Kits / pacotes: desempenho por kit (mês de ABERTURA do orçamento, para comparar orçados x fechados da mesma safra)
+function renderRelKits(){
+    var el=document.getElementById('rel-kits'); if(!el) return;
+    var escR=function(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
+    var vend=document.getElementById('rel-vend')?.value||'', mes=document.getElementById('rel-mes')?.value||'';
+    var base=db.orcs.filter(function(o){ if(o.deleted) return false; if(vend && o.vend!==vend) return false; if(mes && String(o.data||'').slice(0,7)!==mes) return false; return true; });
+    var fmt=function(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); };
+    var grupos={}; base.forEach(function(o){ var ks=(o.kits&&o.kits.length)?o.kits:['(sem kit)']; ks.forEach(function(k){ (grupos[k]=grupos[k]||[]).push(o); }); });
+    var linhas=Object.keys(grupos).sort(function(a,b){ return a==='(sem kit)'?1:b==='(sem kit)'?-1:grupos[b].length-grupos[a].length; }).map(function(k){
+        var g=grupos[k], f=g.filter(function(o){return o.status==='fechado';}), p=g.filter(function(o){return o.status==='perdido';}), ab=g.length-f.length-p.length;
+        var vo=g.reduce(function(a,o){return a+(o.val||0);},0), vf=f.reduce(function(a,o){return a+(parseFloat(o.valorAprovado)||o.val||0);},0);
+        var conv=g.length?Math.round(1000*f.length/g.length)/10:0;
+        return '<tr'+(k==='(sem kit)'?' style="color:var(--gray)"':'')+'><td><b>'+(k==='(sem kit)'?'Sem kit (comparação)':'📦 '+escR(k))+'</b></td><td>'+g.length+'</td><td>'+f.length+'</td><td>'+p.length+'</td><td>'+ab+'</td><td><b>'+conv.toLocaleString('pt-BR')+'%</b></td><td>'+fmt(vo)+'</td><td>'+fmt(vf)+'</td><td>'+(f.length?fmt(vf/f.length):'—')+'</td></tr>';
+    }).join('');
+    var rec={}; base.forEach(function(o){ (o.itens||[]).forEach(function(it){ if(it.kit && it.aprovado===false){ var c=it.kit+'||'+it.descricao; (rec[c]=rec[c]||{kit:it.kit,item:it.descricao,r:0,x:0}).r++; } }); (o.kitsRem||[]).forEach(function(it){ var c=it.kit+'||'+it.descricao; (rec[c]=rec[c]||{kit:it.kit,item:it.descricao,r:0,x:0}).x++; }); });
+    var top=Object.values(rec).sort(function(a,b){return (b.r+b.x)-(a.r+a.x);}).slice(0,15);
+    el.innerHTML='<div class="card" style="margin-top:14px"><div style="padding:14px 16px 0;font-size:13px;color:var(--gray)">Orçamentos pelo <b>mês de abertura</b>. "Sem kit" serve de régua: se o kit converte mais, ele está funcionando.</div><div class="tw"><table><thead><tr><th>Kit</th><th>Orçamentos</th><th>Fechados</th><th>Perdidos</th><th>Em aberto</th><th>Conversão</th><th>Valor orçado</th><th>Valor fechado</th><th>Ticket fechado</th></tr></thead><tbody>'+(linhas||'<tr><td colspan="9" class="empty">Nenhum orçamento no filtro.</td></tr>')+'</tbody></table></div></div>'
+      +'<div class="card" style="margin-top:14px"><div style="padding:14px 16px 0"><b>Itens do kit que o cliente mais tira</b><div style="font-size:12.5px;color:var(--gray)">Recusado = desmarcado como não aprovado · Removido = apagado do orçamento pelo vendedor. Item que sai muito talvez não devesse estar no kit, ou precisa ser melhor explicado.</div></div><div class="tw"><table><thead><tr><th>Kit</th><th>Item</th><th>Recusado</th><th>Removido</th></tr></thead><tbody>'
+      +(top.map(function(t){ return '<tr><td>'+escR(t.kit)+'</td><td>'+escR(t.item)+'</td><td>'+t.r+'</td><td>'+t.x+'</td></tr>'; }).join('')||'<tr><td colspan="4" class="empty">Ainda sem dados de itens recusados.</td></tr>')+'</tbody></table></div></div>';
 }
 
 function renderRelatorios(){
+    if(document.getElementById('reltp-2')?.classList.contains('on')) renderRelKits();
     const busca = (document.getElementById('rel-busca')?.value||'').toLowerCase();
     const vend  = document.getElementById('rel-vend')?.value||'';
     const mes   = document.getElementById('rel-mes')?.value||'';
@@ -4572,7 +4599,7 @@ async function voltarDoGerador(id){
     if(id && db.orcs.find(function(x){ return x.id==id; })){ abrirModal(id); }
     else if(id){ toast('Orçamento não encontrado na lista (pode ter sido excluído).'); }
 }
-var GERADOR_SRC='gerador_orcamento_dias.html?v=20261125';
+var GERADOR_SRC='gerador_orcamento_dias.html?v=20261126k';
 // Vigia da PRIMEIRA carga: se o iframe estático não carregou (tela cinza quebrada do print),
 // ou se o navegador está com uma versão antiga do gerador em cache (sem a ponte), recarrega.
 setTimeout(function(){ if(!__gerPronto) recarregarGerador(''); }, 10000);

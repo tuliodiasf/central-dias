@@ -38,6 +38,15 @@
   .custo-col input{border:1px solid #f0d98c;background:#fffbea}
   .rm{cursor:pointer;color:var(--cinza3);font-weight:700;font-size:15px;padding:0 4px;border:0;background:none}
   .rm:hover{color:var(--verm)}
+  .kitbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 14px;margin-bottom:14px}
+  .kitbar .kb{background:#5b21b6;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px}
+  .kit-tag{display:inline-block;font-size:10px;font-weight:700;color:#5b21b6;background:#ede9fe;border-radius:5px;padding:0 5px;margin-top:2px}
+  #kit-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto}
+  #kit-ov .kbox{background:#fff;border-radius:14px;max-width:760px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  #kit-ov table{width:100%;border-collapse:collapse}#kit-ov td,#kit-ov th{padding:4px;border-bottom:1px solid #eee;font-size:13px;text-align:left}
+  #kit-ov input,#kit-ov select{width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:13px}
+  #kit-ov .kbtn{border:1px solid #ccc;background:#fff;border-radius:7px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:12.5px}
+  #kit-ov .kbtn.p{background:#5b21b6;color:#fff;border-color:#5b21b6}
   .addbtn{margin-top:6px;font-size:12px;color:var(--verm);cursor:pointer;font-weight:700;background:none;border:0;padding:4px 0}
   .subtot{text-align:right;font-size:13px;font-weight:800;padding:6px 8px 0;color:var(--preto)}
   .rlin{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
@@ -182,6 +191,8 @@
     </div>
   </div>
 
+  <div class="kitbar no-print"><button type="button" class="kb" onclick="abrirKits()">📦 Inserir kit / pacote</button><span style="font-size:12.5px;color:#4c1d95">Itens já preenchidos com valor sugerido. Altere valores, descrições ou remova o que o cliente não quiser.</span><span id="kits-usados" style="font-size:12.5px;font-weight:700;color:#5b21b6"></span></div>
+
   <div class="card" id="card-produtos">
     <div class="sec">Produtos</div>
     <table><thead><tr><th class="ap no-print" title="Desmarque o que o cliente NÃO aprovou">✔</th><th>Descrição</th><th class="qt">Qtd</th><th class="vl">Vlr. un.</th><th class="tt">Total</th><th class="cc custo-col">Custo</th><th class="no-print"></th></tr></thead><tbody id="produtos"></tbody></table>
@@ -282,6 +293,7 @@ function removerItem(btn){
   var val=parseFloat((tr.querySelector('.val')||{}).value)||0;
   var vazia=!desc && val===0;
   if(!vazia && !confirm('Deseja remover este item do orçamento?'+(desc?'\n\n• '+desc:''))) return;
+  if(tr.dataset.kit && desc){ (window.__kitRem=window.__kitRem||[]).push({kit:tr.dataset.kit,descricao:desc}); }
   tr.remove(); recalc();
 }
 function soma(id){
@@ -641,6 +653,80 @@ function copiarProdutosWhats(){
     navigator.clipboard.writeText(msg).then(feito).catch(function(){ prompt('Copie a lista abaixo:', msg); });
   } else { prompt('Copie a lista abaixo:', msg); }
 }
+/* ═══ KITS / PACOTES DE SERVIÇO ═══ */
+var KITS=[], KIT_ED=null;
+function escK(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function brlK(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function marcarKit(tr,kit){ tr.dataset.kit=kit; var td=tr.querySelector('.it').parentNode; if(!td.querySelector('.kit-tag')) td.insertAdjacentHTML('beforeend','<div class="kit-tag no-print">📦 '+escK(kit)+'</div>'); }
+function mostrarKitsUsados(){ var el=document.getElementById('kits-usados'); if(!el) return; var k=Object.keys(window.__kitsUsados||{}); el.textContent=k.length?'Kits neste orçamento: '+k.join(', '):''; }
+async function usuarioEmail(){ try{ var r=await supa.auth.getSession(); return (r.data.session&&r.data.session.user.email)||''; }catch(e){ return ''; } }
+async function carregarKits(){ var r=await supa.from('orcamento_kits').select('*').eq('ativo',true).order('nome'); KITS=r.data||[]; }
+function kitOv(html){ var ov=document.getElementById('kit-ov'); if(!ov){ ov=document.createElement('div'); ov.id='kit-ov'; ov.onclick=function(e){ if(e.target===ov) fecharKits(); }; document.body.appendChild(ov); } ov.innerHTML='<div class="kbox">'+html+'</div>'; ov.style.display='flex'; }
+function fecharKits(){ var ov=document.getElementById('kit-ov'); if(ov) ov.style.display='none'; }
+async function abrirKits(){
+  if(!supa){ alert('Sem conexão com o banco.'); return; }
+  kitOv('<div style="padding:20px;text-align:center;color:#666">Carregando kits...</div>');
+  await carregarKits();
+  var lista=KITS.map(function(k){ var it=k.itens||[]; var tot=it.reduce(function(a,x){ return a+(Number(x.qtd)||0)*(Number(x.unit)||0); },0);
+    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+      +'<div><b style="font-size:15px">📦 '+escK(k.nome)+'</b><div style="font-size:12px;color:#666">'+it.length+' itens · valor sugerido '+brlK(tot)+(k.atualizado_por?' · alterado por '+escK(k.atualizado_por.split('@')[0]):'')+'</div></div>'
+      +'<div style="display:flex;gap:6px"><button class="kbtn" onclick="editarKit('+k.id+')">Editar</button><button class="kbtn p" onclick="inserirKit('+k.id+')">Inserir no orçamento</button></div></div>'; }).join('')||'<div style="color:#666;padding:10px">Nenhum kit cadastrado ainda.</div>';
+  kitOv('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">📦 Kits / pacotes de serviço</h3><button class="kbtn" onclick="fecharKits()">Fechar</button></div>'
+    +lista
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #eee;padding-top:12px"><button class="kbtn" onclick="editarKit(null)">+ Criar kit novo</button><button class="kbtn" onclick="kitDoOrcamento()">Salvar os itens deste orçamento como kit</button></div>');
+}
+function limparVazias(id){ document.querySelectorAll('#'+id+' tr').forEach(function(tr){ var d=((tr.querySelector('.it')||{}).value||'').trim(); var v=parseFloat((tr.querySelector('.val')||{}).value)||0; if(!d&&!v) tr.remove(); }); }
+function inserirKit(id){
+  var k=KITS.find(function(x){ return x.id===id; }); if(!k) return;
+  if(window.__kitsUsados&&window.__kitsUsados[k.nome]&&!confirm('O kit "'+k.nome+'" já está neste orçamento. Inserir de novo?')) return;
+  limparVazias('produtos'); limparVazias('servicos');
+  (k.itens||[]).forEach(function(it){
+    var prod=it.tipo!=='servico', tb=document.getElementById(prod?'produtos':'servicos');
+    tb.insertAdjacentHTML('beforeend', rowHTML(prod?true:false)); var tr=tb.lastElementChild;
+    tr.querySelector('.it').value=it.descricao||''; tr.querySelector('.qtd').value=it.qtd||1; tr.querySelector('.val').value=it.unit||0;
+    marcarKit(tr,k.nome);
+  });
+  document.getElementById('produtos').insertAdjacentHTML('beforeend', rowHTML(true));
+  document.getElementById('servicos').insertAdjacentHTML('beforeend', rowHTML(false));
+  (window.__kitsUsados=window.__kitsUsados||{})[k.nome]=1; mostrarKitsUsados();
+  recalc(); fecharKits();
+}
+function kitLinha(it){ it=it||{tipo:'produto',descricao:'',qtd:1,unit:0};
+  return '<tr><td style="width:105px"><select class="k-t"><option value="produto"'+(it.tipo!=='servico'?' selected':'')+'>Produto</option><option value="servico"'+(it.tipo==='servico'?' selected':'')+'>Serviço</option></select></td>'
+   +'<td><input class="k-d" value="'+escK(it.descricao)+'" placeholder="Descrição"></td><td style="width:60px"><input class="k-q" type="number" min="0" step="1" value="'+(it.qtd||1)+'"></td>'
+   +'<td style="width:95px"><input class="k-v" type="number" min="0" step="0.01" value="'+(it.unit||0)+'"></td><td style="width:30px"><button class="kbtn" onclick="this.closest(\'tr\').remove()">×</button></td></tr>'; }
+function editarKit(id,itensPre){
+  var k=id?KITS.find(function(x){ return x.id===id; }):null; KIT_ED=k?k.id:null;
+  var itens=itensPre||(k?k.itens:[{tipo:'produto'},{tipo:'servico'}]);
+  kitOv('<h3 style="margin:0 0 10px">'+(k?'Editar kit':'Novo kit')+'</h3>'
+   +'<label style="font-size:12px;font-weight:700">Nome do kit</label><input id="k-nome" value="'+escK(k?k.nome:'')+'" placeholder="Ex.: Troca de óleo do câmbio" style="margin-bottom:10px">'
+   +'<table><thead><tr><th>Tipo</th><th>Descrição</th><th>Qtd</th><th>Vlr. un.</th><th></th></tr></thead><tbody id="k-itens">'+itens.map(kitLinha).join('')+'</tbody></table>'
+   +'<button class="kbtn" style="margin-top:8px" onclick="document.getElementById(\'k-itens\').insertAdjacentHTML(\'beforeend\',kitLinha())">+ item</button>'
+   +'<div style="font-size:12px;color:#666;margin-top:8px">Os valores são sugestão: o vendedor pode alterar em cada orçamento. Alterar o kit não muda orçamentos já feitos.</div>'
+   +'<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap"><div>'+(k?'<button class="kbtn" style="color:#b91c1c" onclick="desativarKit('+k.id+')">Excluir kit</button>':'')+'</div>'
+   +'<div style="display:flex;gap:8px"><button class="kbtn" onclick="abrirKits()">Voltar</button><button class="kbtn p" onclick="salvarKit()">Salvar kit</button></div></div>');
+}
+async function salvarKit(){
+  var nome=(document.getElementById('k-nome').value||'').trim(); if(!nome){ alert('Dê um nome ao kit.'); return; }
+  var itens=[]; document.querySelectorAll('#k-itens tr').forEach(function(tr){ var d=(tr.querySelector('.k-d').value||'').trim(); if(!d) return;
+    itens.push({tipo:tr.querySelector('.k-t').value,descricao:d,qtd:parseFloat(tr.querySelector('.k-q').value)||1,unit:parseFloat(tr.querySelector('.k-v').value)||0}); });
+  if(!itens.length){ alert('Coloque pelo menos um item.'); return; }
+  var email=await usuarioEmail(); var r;
+  if(KIT_ED) r=await supa.from('orcamento_kits').update({nome:nome,itens:itens,atualizado_por:email,atualizado_em:new Date().toISOString()}).eq('id',KIT_ED);
+  else r=await supa.from('orcamento_kits').insert({nome:nome,itens:itens,criado_por:email,atualizado_por:email});
+  if(r.error){ alert(String(r.error.message).indexOf('duplicate')>=0?'Já existe um kit com esse nome.':'Erro ao salvar: '+r.error.message); return; }
+  await abrirKits();
+}
+async function desativarKit(id){
+  if(!confirm('Excluir este kit? Os orçamentos que já usaram continuam registrados no histórico.')) return;
+  var r=await supa.from('orcamento_kits').update({ativo:false,nome:'(excluído '+Date.now()+') '+(KITS.find(function(x){return x.id===id;})||{}).nome}).eq('id',id);
+  if(r.error){ alert('Erro: '+r.error.message); return; } await abrirKits();
+}
+function kitDoOrcamento(){
+  var itens=coletaItens('produtos','produto').concat(coletaItens('servicos','servico')).map(function(it){ return {tipo:it.tipo,descricao:it.descricao,qtd:it.qtd,unit:it.unit}; });
+  if(!itens.length){ alert('Este orçamento ainda não tem itens.'); return; }
+  editarKit(null,itens);
+}
 function coletaItens(id,tipo){
   var arr=[];
   document.querySelectorAll('#'+id+' tr').forEach(function(tr){
@@ -648,6 +734,7 @@ function coletaItens(id,tipo){
     if(!d) return;
     var item={tipo:tipo,descricao:d,qtd:q,unit:v,total:q*v};
     if(tr.classList.contains('reprov')) item.aprovado=false;
+    if(tr.dataset.kit) item.kit=tr.dataset.kit;
     var custoEl=tr.querySelector('.custo');
     if(custoEl && custoEl.value!=='') item.custo=parseFloat(custoEl.value)||0;
     arr.push(item);
@@ -687,7 +774,9 @@ async function salvarOrcamento(){
       itens: itens, produtos_total: tp, servicos_total: ts, desconto: desc,
       cond_pgto: (document.getElementById('o-cond').selectedOptions[0].text+' · '+document.getElementById('p-parc').textContent),
       custo: (function(){ var r=somaCustoItens(); return r.algum?r.tot:null; })(),
-      status: st, os_erp: osNum, motivo_perda: (st==='perdido'?getMotivoGer():'') };
+      status: st, os_erp: osNum, motivo_perda: (st==='perdido'?getMotivoGer():''),
+      kits: (function(){ var k=Object.keys(window.__kitsUsados||{}); itens.forEach(function(it){ if(it.kit && k.indexOf(it.kit)<0) k.push(it.kit); }); return k.length?k:null; })(),
+      kits_removidos: (window.__kitRem&&window.__kitRem.length)?window.__kitRem:null };
     if(st==='fechado'){
       // aprovado_em só na 1ª vez (reedição de fechado não muda o mês do fechamento) — mesma regra da Central
       base.aprovado_em = window.__aprovadoEm || new Date().toISOString();
@@ -800,6 +889,7 @@ async function carregarEdicao(id){
     window.EDIT_ID=id;
     window.__orcStatus=o.status||'';
     window.__aprovadoEm=o.aprovado_em||null;
+    window.__kitsUsados={}; (o.kits||[]).forEach(function(k){ window.__kitsUsados[k]=1; }); window.__kitRem=o.kits_removidos||[]; setTimeout(mostrarKitsUsados,0);
     var stSel=document.getElementById('o-status'); if(stSel){ stSel.value=o.status||'pendente'; if(!stSel.value) stSel.value='pendente'; }
     var osEl=document.getElementById('o-os'); if(osEl) osEl.value=o.os_erp||'';
     setMotivoGer(o.motivo_perda||'');
@@ -842,6 +932,7 @@ async function carregarEdicao(id){
       var tr=tb.lastElementChild;
       if(it.aprovado===false) marcarReprov(tr, true);
       tr.querySelector('.it').value=it.descricao||'';
+      if(it.kit) marcarKit(tr, it.kit);
       tr.querySelector('.qtd').value=it.qtd||1;
       tr.querySelector('.val').value=it.unit||0;
       if(!ehServico && it.custo!=null){ var ci=tr.querySelector('.custo'); if(ci){ ci.value=it.custo; temCusto=true; } }
@@ -929,7 +1020,7 @@ function limparTudo(){
 // buscarNumero=false quando um orçamento vai ser carregado logo em seguida (edição) — evita a corrida
 // do proximoNumero() sobrescrever o número do orçamento carregado.
 function novoEmBranco(buscarNumero){
-  window.EDIT_ID=null; window.__orcStatus=''; window.__aprovadoEm=null;
+  window.EDIT_ID=null; window.__orcStatus=''; window.__aprovadoEm=null; window.__kitsUsados={}; window.__kitRem=[]; setTimeout(mostrarKitsUsados,0);
   var stSel=document.getElementById('o-status'); if(stSel) stSel.value='pendente';
   var osEl=document.getElementById('o-os'); if(osEl) osEl.value='';
   setMotivoGer(''); statusChanged();
