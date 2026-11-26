@@ -126,6 +126,17 @@ td{padding:11px 10px;border-bottom:1px solid #eef0f3;vertical-align:top}
 .alerta{background:var(--red-bg);border:1px solid #f3c2ca;color:#7f1d1d;border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:13.5px}
 .gate{max-width:440px;margin:80px auto;text-align:center}
 code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;word-break:break-all}
+
+.cal-wrap{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-h{font-size:11.5px;font-weight:700;color:var(--gray);text-align:center;padding:4px 0}
+.cal-d{min-height:78px;border:1px solid var(--border);border-radius:9px;padding:5px 6px;cursor:pointer;background:#fff;display:flex;flex-direction:column;gap:2px;font-size:11.5px}
+.cal-d:hover{border-color:#9ca3af}.cal-d.fora{opacity:.4}.cal-d.hoje{border:2px solid var(--accent)}.cal-d.sel{background:#f3f4f6;border-color:#111}
+.cal-d .n{font-weight:800;font-size:13px}.cal-d .cb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-it{border:1px solid var(--border);border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fff;cursor:pointer;display:flex;gap:9px;align-items:flex-start}
+.cal-it.late{background:#fff1f2;border-color:#f3c2ca}.cal-it.done{opacity:.5;text-decoration:line-through}
+.cal-it .ic{font-size:16px;line-height:1.2}.cal-sec{font-size:12px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 6px}
+@media(max-width:900px){.cal-wrap{grid-template-columns:1fr}.cal-d{min-height:56px}}
 @media(max-width:700px){.cv-grid{grid-template-columns:1fr!important}.fg{grid-template-columns:1fr}.wrap{padding:14px 12px 40px}}
 </style>
 </head>
@@ -133,6 +144,7 @@ code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;
 <div class="wrap" id="app" style="display:none">
   <div class="tabs" role="tablist">
     <button class="tab on" data-p="kanban" onclick="ir('kanban')">Kanban <span class="cnt red" id="c-hoje" style="display:none">0</span></button>
+    <button class="tab" data-p="calendario" onclick="ir('calendario')">Calendário <span class="cnt" id="c-cal" style="display:none">0</span></button>
     <button class="tab" data-p="painel" onclick="ir('painel')">Painel de Tráfego</button>
     <button class="tab" data-p="conversas" onclick="ir('conversas')">Conversas</button>
     <button class="tab" data-p="config" onclick="ir('config')">Configurações</button>
@@ -186,6 +198,12 @@ code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;
       </div>
     </div>
     <div id="painel"></div>
+  </section>
+
+  <!-- ═══ CALENDÁRIO ═══ -->
+  <section class="page" id="p-calendario">
+    <div class="ph"><div><div class="ptitle">Calendário</div><div class="psub">agendados, retornos combinados, follow ups e anotações da equipe · comece o dia por aqui</div></div></div>
+    <div id="calendario"></div>
   </section>
 
   <!-- ═══ CONVERSAS ═══ -->
@@ -270,7 +288,9 @@ async function boot(){
   const ok=await carregar();
   if(!ok) return;
   $('gate').style.display='none'; $('app').style.display='block';
+  await carregarAnot();
   renderTudo();
+  supa.channel('crm-anot').on('postgres_changes',{event:'*',schema:'public',table:'crm_anotacoes'},()=>{clearTimeout(window._ra);window._ra=setTimeout(async()=>{await carregarAnot();contarCal();if($('p-calendario').classList.contains('on'))renderCal();if(fichaId)abrirFicha(fichaId,true);},400);}).subscribe();
   supa.channel('crm-leads').on('postgres_changes',{event:'*',schema:'public',table:'crm_leads'},()=>{clearTimeout(window._rt);window._rt=setTimeout(async()=>{await carregarLeads();renderTudo();if(fichaId)abrirFicha(fichaId,true);},400);}).subscribe();
   setInterval(()=>{renderKanbanHoje();},60000);
 }
@@ -301,12 +321,12 @@ async function carregarCustos(){
   const {data}=await supa.from('crm_custos').select('*').gte('dia',d.toISOString().slice(0,10));
   CUSTOS=data||[]; if($('p-painel').classList.contains('on'))renderPainel();
 }
-function renderTudo(){renderKanban();if($('p-painel').classList.contains('on'))renderPainel();if($('p-config').classList.contains('on'))renderConfig();if($('p-conversas').classList.contains('on'))renderConversas();}
+function renderTudo(){renderKanban();contarCal();if($('p-calendario').classList.contains('on'))renderCal();if($('p-painel').classList.contains('on'))renderPainel();if($('p-config').classList.contains('on'))renderConfig();if($('p-conversas').classList.contains('on'))renderConversas();}
 function ir(p){
   if(p!=='conversas'&&typeof CV!=='undefined')CV.voltar=null;
   document.querySelectorAll('.tabs:first-child .tab').forEach(t=>t.classList.toggle('on',t.dataset.p===p));
   document.querySelectorAll('.page').forEach(s=>s.classList.toggle('on',s.id==='p-'+p));
-  if(p==='painel')renderPainel(); if(p==='config')renderConfig(); if(p==='conversas')renderConversas(); if(p==='kanban')renderKanban();
+  if(p==='calendario')renderCal(); if(p==='painel')renderPainel(); if(p==='config')renderConfig(); if(p==='conversas')renderConversas(); if(p==='kanban')renderKanban();
 }
 function verK(v){
   kView=v;
@@ -607,6 +627,101 @@ async function salvarNovo(){
   LEADS.unshift(data); _chk={}; renderKanban(); toast('Lead criado');
 }
 
+/* ═══ CALENDÁRIO ═══ */
+let ANOT=[], CAL={mes:null,sel:null};
+async function carregarAnot(){
+  const d=new Date();d.setDate(d.getDate()-120);
+  const {data,error}=await supa.from('crm_anotacoes').select('*').or('dia.gte.'+ymd(d)+',feito.eq.false').order('dia');
+  if(error){console.error(error);return;}
+  ANOT=data||[];
+}
+function ymdL(x){return x?ymd(new Date(x)):null;}
+function itensDia(d){
+  const hoje=ymd(new Date()), eHoje=d===hoje, its=[];
+  LEADS.forEach(l=>{
+    const nm=l.nome||foneFmt(l.telefone)||'Sem nome', car=l.carro?' · '+l.carro:'';
+    if(l.etapa==='agendado'&&l.agendado_para&&ymdL(l.agendado_para)===d)
+      its.push({t:'ag',ic:'🔧',ord:new Date(l.agendado_para).getHours()*60+new Date(l.agendado_para).getMinutes(),hora:new Date(l.agendado_para).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:l.servico||l.interesse||'Agendado',id:l.id,late:noShow(l)});
+    if(['nutricao','perdido'].includes(l.etapa)&&l.reativar_em===d)
+      its.push({t:'rt',ic:'📅',ord:600,tit:nm+car,sub:'Retorno combinado'+(l.retorno_obs?': '+l.retorno_obs:''),id:l.id});
+    if(eHoje&&pendRetorno(l))
+      its.push({t:'rt',ic:'📅',ord:599,tit:nm+car,sub:'Voltou hoje · '+(l.retorno_obs||'retorno combinado'),id:l.id});
+    if(['atendimento','orcamento'].includes(l.etapa)&&l.fup_proximo&&!l.recorrente){
+      const fd=ymdL(l.fup_proximo);
+      if(fd===d||(eHoje&&fd<hoje)) its.push({t:'fu',ic:'💬',ord:new Date(l.fup_proximo).getHours()*60,hora:fd<hoje?'atrasado':new Date(l.fup_proximo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:l.etapa==='orcamento'?'Follow up do orçamento'+(l.valor_orcamento?' '+brl0(l.valor_orcamento):''):'Follow up do atendimento',id:l.id,late:fd<hoje||new Date(l.fup_proximo)<new Date()});
+    }
+    if(eHoje&&noShow(l)&&ymdL(l.agendado_para)<hoje)
+      its.push({t:'ns',ic:'⚠️',ord:0,tit:nm+car,sub:'Não compareceu em '+dia(l.agendado_para)+': remarcar',id:l.id,late:true});
+  });
+  ANOT.forEach(a=>{
+    if(a.dia===d||(eHoje&&!a.feito&&a.dia<hoje))
+      its.push({t:'an',ic:'📝',ord:a.hora?Number(a.hora.slice(0,2))*60+Number(a.hora.slice(3,5)):700,hora:a.dia<hoje?'desde '+a.dia.split('-').reverse().slice(0,2).join('/'):(a.hora?a.hora.slice(0,5):''),tit:a.texto,sub:(a.lead_id&&L(a.lead_id)?'Lead: '+(L(a.lead_id).nome||foneFmt(L(a.lead_id).telefone))+' · ':'')+'por '+nomeUser(a.autor),an:a,late:!a.feito&&a.dia<hoje,done:a.feito});
+  });
+  return its;
+}
+function contarCal(){
+  const c=$('c-cal'); if(!c)return;
+  const its=itensDia(ymd(new Date())).filter(x=>!x.done); const late=its.filter(x=>x.late).length;
+  c.style.display=its.length?'':'none'; c.textContent=its.length; c.classList.toggle('red',late>0);
+}
+function calMes(dlt){const m=CAL.mes;CAL.mes=new Date(m.getFullYear(),m.getMonth()+dlt,1);renderCal();}
+function calHoje(){const h=new Date();CAL.mes=new Date(h.getFullYear(),h.getMonth(),1);CAL.sel=ymd(h);renderCal();}
+function calSel(d){CAL.sel=d;renderCal();}
+function renderCal(){
+  if(!CAL.mes){const h=new Date();CAL.mes=new Date(h.getFullYear(),h.getMonth(),1);CAL.sel=ymd(h);}
+  const m=CAL.mes, hoje=ymd(new Date());
+  const ini=new Date(m.getFullYear(),m.getMonth(),1-m.getDay());
+  const nomeMes=m.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  let cel='';
+  for(let i=0;i<42;i++){
+    const dd=new Date(ini.getFullYear(),ini.getMonth(),ini.getDate()+i), k=ymd(dd);
+    if(i===35&&dd.getMonth()!==m.getMonth())break;
+    const its=itensDia(k).filter(x=>!x.done), ct=t=>its.filter(x=>x.t===t).length;
+    const b=[['ag','🔧','agend.'],['rt','📅','retorno'],['fu','💬','follow up'],['an','📝','nota']].map(([t,ic,lb])=>{const n=ct(t);return n?`<div class="cb">${ic} ${n} ${lb}${n>1&&lb!=='follow up'?'s':''}</div>`:'';}).join('');
+    cel+=`<div class="cal-d ${dd.getMonth()!==m.getMonth()?'fora':''} ${k===hoje?'hoje':''} ${k===CAL.sel?'sel':''}" onclick="calSel('${k}')"><span class="n">${dd.getDate()}</span>${b}</div>`;
+  }
+  const sel=CAL.sel, its=itensDia(sel).sort((a,b)=>(b.late?1:0)-(a.late?1:0)||a.ord-b.ord);
+  const grupos=[['ns','Não compareceram'],['ag','Agendados'],['rt','Retornos combinados'],['fu','Follow ups'],['an','Anotações']];
+  const dSel=new Date(sel+'T12:00:00');
+  const titulo=(sel===hoje?'Hoje, ':'')+dSel.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  const lista=grupos.map(([t,lb])=>{const g=its.filter(x=>x.t===t);if(!g.length)return'';
+    return `<div class="cal-sec">${lb} · ${g.length}</div>`+g.map(x=>{
+      const click=x.an?`modalAnot(${x.an.id})`:`abrirFicha(${x.id})`;
+      const chk=x.an?`<input type="checkbox" ${x.an.feito?'checked':''} onclick="event.stopPropagation();anotFeito(${x.an.id},this.checked)" style="margin-top:3px;width:17px;height:17px">`:`<span class="ic">${x.ic}</span>`;
+      return `<div class="cal-it ${x.late?'late':''} ${x.done?'done':''}" onclick="${click}">${chk}<div style="flex:1;min-width:0"><div class="row" style="justify-content:space-between;gap:8px"><b>${esc(x.tit)}</b>${x.hora?`<span class="${x.late?'red-t':'muted'}" style="font-size:12px;white-space:nowrap">${esc(x.hora)}</span>`:''}</div><div class="muted" style="font-size:12.5px">${esc(x.sub)}</div></div></div>`;}).join('');}).join('');
+  $('calendario').innerHTML=`<div class="cal-wrap">
+    <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0;text-transform:capitalize">${nomeMes}</h3>
+      <div class="row"><button class="btn bs bsm" onclick="calMes(-1)">◀</button><button class="btn bs bsm" onclick="calHoje()">Hoje</button><button class="btn bs bsm" onclick="calMes(1)">▶</button></div></div>
+      <div class="cal-g">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(x=>`<div class="cal-h">${x}</div>`).join('')}${cel}</div></div>
+    <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:4px"><h3 style="margin:0;text-transform:capitalize">${titulo}</h3><button class="btn bp bsm" onclick="modalAnot(null,null,'${sel}')">+ Anotação</button></div>
+      ${lista||'<div class="empty">Nada programado para este dia.</div>'}</div></div>`;
+}
+async function anotFeito(id,v){
+  const {error}=await supa.from('crm_anotacoes').update({feito:v,feito_por:v?U.email:null,feito_em:v?new Date().toISOString():null}).eq('id',id);
+  if(error){toast('Erro: '+error.message);return;}
+  const a=ANOT.find(x=>x.id===id); if(a){a.feito=v;} contarCal(); renderCal();
+}
+function modalAnot(id,leadId,diaPad){
+  const a=id?ANOT.find(x=>x.id===id):null; const lid=a?a.lead_id:leadId; const ld=lid?L(lid):null;
+  modal(a?'Anotação':'📝 Nova anotação',`${ld?`<div class="box gray">Lead: <b>${esc(ld.nome||foneFmt(ld.telefone))}</b>${ld.carro?' · '+esc(ld.carro):''} <a href="#" onclick="fecharMod();abrirFicha(${ld.id});return false">abrir ficha</a></div>`:''}
+   <div class="fg"><div class="fi"><label>Dia</label><input type="date" id="an-d" value="${a?a.dia:(diaPad||ymd(new Date()))}"></div><div class="fi"><label>Hora (opcional)</label><input type="time" id="an-h" value="${a&&a.hora?a.hora.slice(0,5):''}"></div></div>
+   <div class="fi"><label>Anotação</label><textarea id="an-t" placeholder="Ex.: confirmar com a Motul a entrega do óleo · reunião da força tarefa 17h30">${a?esc(a.texto):''}</textarea></div>
+   ${a?`<div class="muted">Criada por ${esc(nomeUser(a.autor))} em ${dia(a.criado_em)}${a.feito?' · feita por '+esc(nomeUser(a.feito_por))+' em '+dia(a.feito_em):''}</div>
+   <div class="row" style="margin-top:8px"><button class="btn bs bsm" onclick="anotFeito(${a.id},${!a.feito});fecharMod()">${a.feito?'Reabrir':'✔ Marcar como feita'}</button><button class="btn bs bsm" style="color:#b91c1c" onclick="anotExcluir(${a.id})">Excluir</button></div>`:''}`,
+   async()=>{ const t=$('an-t').value.trim(), d=$('an-d').value; if(!t){toast('Escreva a anotação');return false;} if(!d){toast('Escolha o dia');return false;}
+     const row={dia:d,hora:$('an-h').value||null,texto:t};
+     const r=a?await supa.from('crm_anotacoes').update(row).eq('id',a.id):await supa.from('crm_anotacoes').insert({...row,lead_id:lid||null,autor:U.email});
+     if(r.error){toast('Erro: '+r.error.message);return false;}
+     await carregarAnot(); contarCal(); if($('p-calendario').classList.contains('on')){CAL.sel=d;renderCal();} if(fichaId)abrirFicha(fichaId,true);
+     toast(a?'Anotação salva':'Anotação criada para '+d.split('-').reverse().join('/')); },a?'Salvar':'Criar anotação');
+}
+async function anotExcluir(id){
+  if(!confirm('Excluir esta anotação?'))return;
+  const {error}=await supa.from('crm_anotacoes').delete().eq('id',id);
+  if(error){toast('Erro: '+error.message);return;}
+  ANOT=ANOT.filter(x=>x.id!==id); fecharMod(); contarCal(); renderCal(); toast('Anotação excluída');
+}
+
 /* ═══ FICHA ═══ */
 async function abrirFicha(id,refresh){
   const l=L(id); if(!l)return; fichaId=id;
@@ -653,6 +768,7 @@ async function abrirFicha(id,refresh){
        <div class="fi full"><label>Observações</label><textarea id="f-obs">${esc(l.obs||'')}</textarea></div>
      </div><div style="margin-top:10px"><button class="btn bp bsm" onclick="salvarDados(${id})">Salvar dados</button></div></div>
      <div class="sec"><h4>De onde veio</h4><div class="muted">${c?`${c.canal==='google'?'Google Ads':c.canal==='meta'?'Meta Ads':'Outro'} · ${esc(c.nome)} · código ${esc(c.codigo)}`:esc({base:'Cliente da base',triagem:'Sem código (triagem)',manual:'Cadastro manual',nutricao:'Reativado da Nutrição/Perdidos',campanha:'Campanha',expad:'Importado do Expad'}[l.origem]||l.origem)} · criado ${dt(l.criado_em)} por ${esc(nomeUser(l.criado_por))}</div></div>
+     <div class="sec"><h4>Anotações</h4>${(()=>{const an=ANOT.filter(a=>a.lead_id===id).sort((a,b)=>a.dia.localeCompare(b.dia));return (an.map(a=>`<div class="row" style="justify-content:space-between;margin-bottom:4px;${a.feito?'opacity:.5;text-decoration:line-through':''}"><span><b>${a.dia.split('-').reverse().join('/')}</b>${a.hora?' '+a.hora.slice(0,5):''} · ${esc(a.texto)}</span><span class="muted">${esc(nomeUser(a.autor))}</span></div>`).join('')||'<div class="muted">Nenhuma anotação.</div>')+`<div style="margin-top:6px"><button class="btn bs bsm" onclick="modalAnot(null,${id})">📝 Nova anotação</button></div>`;})()}</div>
      <div class="sec"><h4>Histórico</h4><div class="hist" id="f-hist"><span class="muted">Carregando...</span></div></div>
      <div class="row"><button class="btn bs bsm" onclick="ignorarLead(${id})">Não é lead (ignorar número)</button>${EH_GESTOR?`<button class="btn bs bsm" style="color:#cc0000;border-color:#f3c2ca" onclick="excluirLead(${id})">Excluir lead</button>`:''}</div>
    </div>`;
