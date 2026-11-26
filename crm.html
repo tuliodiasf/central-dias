@@ -383,7 +383,7 @@ function renderKanbanHoje(){
   $('hoje-n').textContent='('+h.length+')';
   { const r=$('hoje-res'); if(r){ const its=(typeof itensDia==='function'?itensDia(ymd(new Date())):[]).filter(x=>!x.done); const n=t=>its.filter(x=>x.t===t).length; const lt=its.filter(x=>x.late).length;
     r.textContent=[n('ag')?n('ag')+' agendados':'',n('rt')?n('rt')+' retornos':'',n('fu')?n('fu')+' follow ups':'',n('ns')?n('ns')+' para remarcar':'',n('an')?n('an')+' anotações':'',lt?lt+' atrasados':''].filter(Boolean).join(' · '); } }
-  const c=$('c-hoje'); c.style.display=late?'':'none'; c.textContent=late;
+  const c=$('c-hoje'); c.style.display='none'; c.textContent=late;
   $('hoje').innerHTML=h.length?h.map(x=>`<div class="hj ${x.late?'late':''}" onclick="abrirFicha(${x.l.id})">
      <div class="row" style="justify-content:space-between"><b>${esc(x.l.nome||foneFmt(x.l.telefone))}</b><span class="${x.late?'red-t':'muted'}" style="font-size:12px">${x.tipo==='retorno'?'chamar hoje':x.tipo==='noshow'?'remarcar':x.quando.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
      <div class="muted">${esc(x.motivo)}</div>
@@ -643,7 +643,7 @@ function itensDia(d){
   const hoje=ymd(new Date()), eHoje=d===hoje, its=[];
   LEADS.forEach(l=>{
     const nm=l.nome||foneFmt(l.telefone)||'Sem nome', car=l.carro?' · '+l.carro:'';
-    if(l.etapa==='agendado'&&l.agendado_para&&ymdL(l.agendado_para)===d)
+    if(l.etapa==='agendado'&&l.agendado_para&&!l.os_numero&&ymdL(l.agendado_para)===d)
       its.push({t:'ag',ic:'🔧',ord:new Date(l.agendado_para).getHours()*60+new Date(l.agendado_para).getMinutes(),hora:new Date(l.agendado_para).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:l.servico||l.interesse||'Agendado',id:l.id,late:noShow(l)});
     if(['nutricao','perdido'].includes(l.etapa)&&l.reativar_em===d)
       its.push({t:'rt',ic:'📅',ord:600,tit:nm+car,sub:'Retorno combinado'+(l.retorno_obs?': '+l.retorno_obs:''),id:l.id});
@@ -651,7 +651,7 @@ function itensDia(d){
       its.push({t:'rt',ic:'📅',ord:599,tit:nm+car,sub:'Voltou hoje · '+(l.retorno_obs||'retorno combinado'),id:l.id,ret:true});
     if(['atendimento','orcamento'].includes(l.etapa)&&l.fup_proximo&&!l.recorrente){
       const fd=ymdL(l.fup_proximo);
-      if(fd===d||(eHoje&&fd<hoje)) its.push({t:'fu',ic:'💬',ord:new Date(l.fup_proximo).getHours()*60,hora:fd<hoje?'atrasado':new Date(l.fup_proximo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:(l.etapa==='orcamento'?'Follow up do orçamento'+(l.valor_orcamento?' '+brl0(l.valor_orcamento):''):'Follow up do atendimento')+' · FUP '+Math.min((l.fup_n||0)+1,REGUA().length)+'/'+REGUA().length,id:l.id,fu:true,late:fd<hoje||new Date(l.fup_proximo)<new Date()});
+      if((fd===d&&d>=hoje)||(eHoje&&fd<hoje)) its.push({t:'fu',ic:'💬',ord:new Date(l.fup_proximo).getHours()*60,hora:fd<hoje?'atrasado':new Date(l.fup_proximo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:(l.etapa==='orcamento'?'Follow up do orçamento'+(l.valor_orcamento?' '+brl0(l.valor_orcamento):''):'Follow up do atendimento')+' · FUP '+Math.min((l.fup_n||0)+1,REGUA().length)+'/'+REGUA().length,id:l.id,fu:true,late:fd<hoje||new Date(l.fup_proximo)<new Date()});
     }
     if(eHoje&&noShow(l)&&ymdL(l.agendado_para)<hoje)
       its.push({t:'ns',ic:'⚠️',ord:0,tit:nm+car,sub:'Não compareceu em '+dia(l.agendado_para)+': remarcar',id:l.id,late:true});
