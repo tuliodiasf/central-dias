@@ -168,12 +168,13 @@ code{background:var(--gray-bg);padding:3px 7px;border-radius:6px;font-size:12px;
     </div>
     <div id="kv-quadro">
       <div id="alerta-novos"></div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="row" style="justify-content:space-between;margin-bottom:10px">
-          <h3 style="margin:0">Contatos de hoje <span class="red-t" id="hoje-n"></span></h3>
-          <span class="muted" id="regua-txt"></span>
+      <div class="card" style="margin-bottom:14px;padding:12px 16px;cursor:pointer" onclick="ir('calendario')">
+        <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div><b>📅 Contatos de hoje <span class="red-t" id="hoje-n"></span></b> <span class="muted" id="hoje-res"></span></div>
+          <button class="btn bk bsm">Abrir no Calendário</button>
         </div>
-        <div class="hoje" id="hoje"></div>
+        <div class="muted" id="regua-txt" style="margin-top:4px;font-size:12px"></div>
+        <div class="hoje" id="hoje" style="display:none"></div>
       </div>
       <div class="board" id="board"></div>
       <div class="muted" style="margin-top:6px">Arraste o card entre as colunas ou abra a ficha. Ganho e Perdido saem do quadro e vão para as abas acima.</div>
@@ -380,6 +381,8 @@ function listaHoje(){
 function renderKanbanHoje(){
   const h=listaHoje(); const late=h.filter(x=>x.late).length;
   $('hoje-n').textContent='('+h.length+')';
+  { const r=$('hoje-res'); if(r){ const its=(typeof itensDia==='function'?itensDia(ymd(new Date())):[]).filter(x=>!x.done); const n=t=>its.filter(x=>x.t===t).length; const lt=its.filter(x=>x.late).length;
+    r.textContent=[n('ag')?n('ag')+' agendados':'',n('rt')?n('rt')+' retornos':'',n('fu')?n('fu')+' follow ups':'',n('ns')?n('ns')+' para remarcar':'',n('an')?n('an')+' anotações':'',lt?lt+' atrasados':''].filter(Boolean).join(' · '); } }
   const c=$('c-hoje'); c.style.display=late?'':'none'; c.textContent=late;
   $('hoje').innerHTML=h.length?h.map(x=>`<div class="hj ${x.late?'late':''}" onclick="abrirFicha(${x.l.id})">
      <div class="row" style="justify-content:space-between"><b>${esc(x.l.nome||foneFmt(x.l.telefone))}</b><span class="${x.late?'red-t':'muted'}" style="font-size:12px">${x.tipo==='retorno'?'chamar hoje':x.tipo==='noshow'?'remarcar':x.quando.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
@@ -645,10 +648,10 @@ function itensDia(d){
     if(['nutricao','perdido'].includes(l.etapa)&&l.reativar_em===d)
       its.push({t:'rt',ic:'📅',ord:600,tit:nm+car,sub:'Retorno combinado'+(l.retorno_obs?': '+l.retorno_obs:''),id:l.id});
     if(eHoje&&pendRetorno(l))
-      its.push({t:'rt',ic:'📅',ord:599,tit:nm+car,sub:'Voltou hoje · '+(l.retorno_obs||'retorno combinado'),id:l.id});
+      its.push({t:'rt',ic:'📅',ord:599,tit:nm+car,sub:'Voltou hoje · '+(l.retorno_obs||'retorno combinado'),id:l.id,ret:true});
     if(['atendimento','orcamento'].includes(l.etapa)&&l.fup_proximo&&!l.recorrente){
       const fd=ymdL(l.fup_proximo);
-      if(fd===d||(eHoje&&fd<hoje)) its.push({t:'fu',ic:'💬',ord:new Date(l.fup_proximo).getHours()*60,hora:fd<hoje?'atrasado':new Date(l.fup_proximo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:l.etapa==='orcamento'?'Follow up do orçamento'+(l.valor_orcamento?' '+brl0(l.valor_orcamento):''):'Follow up do atendimento',id:l.id,late:fd<hoje||new Date(l.fup_proximo)<new Date()});
+      if(fd===d||(eHoje&&fd<hoje)) its.push({t:'fu',ic:'💬',ord:new Date(l.fup_proximo).getHours()*60,hora:fd<hoje?'atrasado':new Date(l.fup_proximo).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),tit:nm+car,sub:(l.etapa==='orcamento'?'Follow up do orçamento'+(l.valor_orcamento?' '+brl0(l.valor_orcamento):''):'Follow up do atendimento')+' · FUP '+Math.min((l.fup_n||0)+1,REGUA().length)+'/'+REGUA().length,id:l.id,fu:true,late:fd<hoje||new Date(l.fup_proximo)<new Date()});
     }
     if(eHoje&&noShow(l)&&ymdL(l.agendado_para)<hoje)
       its.push({t:'ns',ic:'⚠️',ord:0,tit:nm+car,sub:'Não compareceu em '+dia(l.agendado_para)+': remarcar',id:l.id,late:true});
@@ -688,7 +691,7 @@ function renderCal(){
     return `<div class="cal-sec">${lb} · ${g.length}</div>`+g.map(x=>{
       const click=x.an?`modalAnot(${x.an.id})`:`abrirFicha(${x.id})`;
       const chk=x.an?`<input type="checkbox" ${x.an.feito?'checked':''} onclick="event.stopPropagation();anotFeito(${x.an.id},this.checked)" style="margin-top:3px;width:17px;height:17px">`:`<span class="ic">${x.ic}</span>`;
-      return `<div class="cal-it ${x.late?'late':''} ${x.done?'done':''}" onclick="${click}">${chk}<div style="flex:1;min-width:0"><div class="row" style="justify-content:space-between;gap:8px"><b>${esc(x.tit)}</b>${x.hora?`<span class="${x.late?'red-t':'muted'}" style="font-size:12px;white-space:nowrap">${esc(x.hora)}</span>`:''}</div><div class="muted" style="font-size:12.5px">${esc(x.sub)}</div></div></div>`;}).join('');}).join('');
+      return `<div class="cal-it ${x.late?'late':''} ${x.done?'done':''}" onclick="${click}">${chk}<div style="flex:1;min-width:0"><div class="row" style="justify-content:space-between;gap:8px"><b>${esc(x.tit)}</b>${x.hora?`<span class="${x.late?'red-t':'muted'}" style="font-size:12px;white-space:nowrap">${esc(x.hora)}</span>`:''}</div><div class="muted" style="font-size:12.5px">${esc(x.sub)}</div></div>${x.fu?`<button class="btn bs bsm" onclick="event.stopPropagation();fupFeito(${x.id}).then(renderCal)">Marcar feito</button>`:x.ret?`<button class="btn bs bsm" onclick="event.stopPropagation();patch(${x.id},{retornou_em:null},['retorno','Retorno feito: cliente chamado']).then(renderCal)">Já chamei</button>`:''}</div>`;}).join('');}).join('');
   $('calendario').innerHTML=`<div class="cal-wrap">
     <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0;text-transform:capitalize">${nomeMes}</h3>
       <div class="row"><button class="btn bs bsm" onclick="calMes(-1)">◀</button><button class="btn bs bsm" onclick="calHoje()">Hoje</button><button class="btn bs bsm" onclick="calMes(1)">▶</button></div></div>
