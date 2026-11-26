@@ -352,6 +352,7 @@ function listaHoje(){
       const max=REGUA().length, ult=l.fup_n>=max;
       out.push({l,quando:new Date(l.fup_proximo),late:new Date(l.fup_proximo)<new Date(),motivo:ult?'Prazo final: sem resposta vai para Nutrição':(l.etapa==='orcamento'?'Orçamento '+(l.valor_orcamento?brl0(l.valor_orcamento)+' ':'')+'sem resposta':'Atendimento parado'),tipo:ult?'final':'fup'});
     }
+    if(pendRetorno(l)) out.push({l,quando:new Date(l.retornou_em),late:false,motivo:'📅 Retorno combinado'+(l.retorno_obs?': '+l.retorno_obs:''),tipo:'retorno'});
     if(noShow(l)) out.push({l,quando:new Date(l.agendado_para),late:true,motivo:'Não compareceu ('+quando(l.agendado_para)+'): remarcar',tipo:'noshow'});
   });
   return out.sort((a,b)=>a.quando-b.quando);
@@ -361,10 +362,10 @@ function renderKanbanHoje(){
   $('hoje-n').textContent='('+h.length+')';
   const c=$('c-hoje'); c.style.display=late?'':'none'; c.textContent=late;
   $('hoje').innerHTML=h.length?h.map(x=>`<div class="hj ${x.late?'late':''}" onclick="abrirFicha(${x.l.id})">
-     <div class="row" style="justify-content:space-between"><b>${esc(x.l.nome||foneFmt(x.l.telefone))}</b><span class="${x.late?'red-t':'muted'}" style="font-size:12px">${x.tipo==='noshow'?'remarcar':x.quando.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
+     <div class="row" style="justify-content:space-between"><b>${esc(x.l.nome||foneFmt(x.l.telefone))}</b><span class="${x.late?'red-t':'muted'}" style="font-size:12px">${x.tipo==='retorno'?'chamar hoje':x.tipo==='noshow'?'remarcar':x.quando.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
      <div class="muted">${esc(x.motivo)}</div>
-     <div class="row" style="justify-content:space-between">${x.tipo==='noshow'?'<span></span>':dotsH(x.l.fup_n,REGUA().length)+'<span class="muted">FUP '+Math.min(x.l.fup_n+1,REGUA().length)+'/'+REGUA().length+'</span>'}
-       ${x.tipo==='noshow'?'':`<button class="btn bs bsm" onclick="event.stopPropagation();fupFeito(${x.l.id})">Marcar feito</button>`}</div>
+     <div class="row" style="justify-content:space-between">${x.tipo==='retorno'?`<span></span><button class="btn bs bsm" onclick="event.stopPropagation();patch(${x.l.id},{retornou_em:null},['retorno','Retorno feito: cliente chamado'])">Já chamei</button>`:x.tipo==='noshow'?'<span></span>':dotsH(x.l.fup_n,REGUA().length)+'<span class="muted">FUP '+Math.min(x.l.fup_n+1,REGUA().length)+'/'+REGUA().length+'</span>'}
+       ${x.tipo!=='fup'&&x.tipo!=='final'?'':`<button class="btn bs bsm" onclick="event.stopPropagation();fupFeito(${x.l.id})">Marcar feito</button>`}</div>
    </div>`).join(''):'<div class="empty">Nenhum contato pendente pra hoje. 👊</div>';
   const sr=LEADS.filter(l=>semResposta(l)&&(Date.now()-new Date(l.criado_em))/6e4>Number(CFG.alerta_sem_resposta_min||15));
   $('alerta-novos').innerHTML=sr.length?`<div class="alerta"><b>${sr.length} lead${sr.length>1?'s':''} sem resposta há mais de ${CFG.alerta_sem_resposta_min||15} min.</b> Lead de tráfego esfria rápido: responda primeiro os marcados em vermelho.</div>`:'';
@@ -384,7 +385,7 @@ function cardH(l){
   const linha=[l.carro,l.servico].filter(Boolean).join(' · ');
   const es=esperando(l);
   return `<div class="kc ${es?'esp':late?'late':''}" draggable="true" ondragstart="dragI(event,${l.id})" onclick="abrirFicha(${l.id})">
-    ${es?`<div class="esp-tag">💬 Cliente respondeu ${ha(l.ultima_msg_cliente)==='agora'?'agora':'há '+ha(l.ultima_msg_cliente)}</div>`:''}${top}<div class="t"><span class="nm">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</span>${l.recorrente?'<span class="badge b-blue">Recorrente</span>':campBadge(l)}</div>
+    ${pendRetorno(l)?`<div style="background:#ccfbf1;color:#134e4a;border:1px solid #5eead4;border-radius:7px;padding:5px 8px;margin-bottom:6px;font-size:12.5px"><b>📅 Retorno combinado</b>${l.retorno_obs?': '+esc(l.retorno_obs):''}</div>`:''}${es?`<div class="esp-tag">💬 Cliente respondeu ${ha(l.ultima_msg_cliente)==='agora'?'agora':'há '+ha(l.ultima_msg_cliente)}</div>`:''}${top}<div class="t"><span class="nm">${esc(l.nome||foneFmt(l.telefone)||'Sem nome')}</span>${l.recorrente?'<span class="badge b-blue">Recorrente</span>':campBadge(l)}</div>
     ${l.ia_temp&&TEMP[l.ia_temp]?`<div style="margin-top:5px"><span title="Leitura da IA" style="display:inline-block;background:${TEMP[l.ia_temp][2]};color:${TEMP[l.ia_temp][3]};font-size:11.5px;font-weight:700;border-radius:6px;padding:1px 7px">${TEMP[l.ia_temp][0]} ${TEMP[l.ia_temp][1]}</span></div>`:''}
     ${linha?`<div class="ln">${esc(linha)}</div>`:''}
     ${l.ia_linha?`<div class="ln" style="color:#4b5563;font-style:italic">${esc(l.ia_linha)}</div>`:''}
@@ -532,6 +533,27 @@ function modalNutricao(id){
      fecharFicha(); toast('Foi para Nutrição'); },'Mandar para Nutrição');
   setTimeout(()=>{const s=$('nt-r'); if(s)s.onchange=()=>{$('nt-d').style.display=s.value==='d'?'':'none';};},30);
 }
+function pendRetorno(l){return !!(l.retornou_em&&!['ganho','perdido','nutricao','ignorado'].includes(l.etapa)&&(!l.ultima_msg_nossa||new Date(l.ultima_msg_nossa)<new Date(l.retornou_em)));}
+function modalRetorno(id){
+  const l=L(id); if(!l)return;
+  const TIPOS=[['data','Combinou de vir depois de uma data',0],['servico','Serviço vence mais pra frente (revisão, troca)',7],['outro','Outro motivo',0]];
+  modal('📅 Retornar em...',`<div class="muted">Para quem já disse quando vem. O lead sai do Kanban e da régua de follow up, e volta sozinho na data, com o aviso do que foi combinado.</div>
+   <div class="fi"><label>Situação</label><div class="pills" id="rt-t">${TIPOS.map((t,i)=>`<button type="button" class="pill ${i===0?'on':''}" data-k="${t[0]}" data-a="${t[2]}" onclick="document.querySelectorAll('#rt-t .pill').forEach(p=>p.classList.toggle('on',p===this));$('rt-a').value=this.dataset.a;$('rt-dl').textContent=this.dataset.k==='servico'?'Quando vence':'Data combinada'">${esc(t[1])}</button>`).join('')}</div></div>
+   <div class="fi"><label id="rt-dl">Data combinada</label><input type="date" id="rt-d" min="${ymd(new Date(Date.now()+864e5))}">
+     <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">${[[7,'1 semana'],[15,'15 dias'],[30,'1 mês'],[60,'2 meses'],[90,'3 meses'],[180,'6 meses']].map(([n,t])=>`<button type="button" class="btn bs bsm" onclick="const d=new Date();d.setDate(d.getDate()+${n});$('rt-d').value=ymd(d)">${t}</button>`).join('')}</div></div>
+   <div class="fi"><label>Lembrar a equipe</label><select id="rt-a"><option value="0">No dia</option><option value="1">1 dia antes</option><option value="3">3 dias antes</option><option value="7">7 dias antes</option><option value="15">15 dias antes</option></select></div>
+   <div class="fi"><label>O que foi combinado (aparece quando ele voltar)</label><textarea id="rt-o" placeholder="Ex.: vem depois do dia 01, quando receber · revisão de 60 mil vence em março, quer fazer com a gente"></textarea></div>
+   <div class="fi"><label>Interesse</label><input id="rt-i" value="${esc(l.interesse||l.servico||'')}" placeholder="Ex.: Troca de óleo do câmbio"></div>`,
+   async()=>{ const d=$('rt-d').value; if(!d){toast('Escolha a data');return false;}
+     const o=$('rt-o').value.trim(); if(!o){toast('Escreva o que foi combinado');return false;}
+     const t=document.querySelector('#rt-t .pill.on'); const ant=Number($('rt-a').value||0);
+     const dt=new Date(d+'T12:00:00'); dt.setDate(dt.getDate()-ant);
+     const amanha=new Date(Date.now()+864e5); const re=ymd(dt<amanha?amanha:dt);
+     const p={etapa:'nutricao',motivo_nutricao:'Retorno combinado: '+t.textContent,reativar_em:re,retorno_obs:o,retornou_em:null,interesse:$('rt-i').value||null};
+     if(!l.responsavel)p.responsavel=U.email;
+     await patch(id,p,['retorno','Retorno agendado para '+d.split('-').reverse().join('/')+(ant?' (lembrar '+ant+' dia'+(ant>1?'s':'')+' antes, em '+re.split('-').reverse().join('/')+')':'')+' · '+o]);
+     fecharFicha(); toast('Retorno agendado: volta para o Kanban em '+re.split('-').reverse().join('/')); },'Agendar retorno');
+}
 function modalOS(id){
   const l=L(id);
   modal('Lançar OS do Oficina Inteligente',`<div class="muted">${esc(l.nome||'')} ${l.carro?'· '+esc(l.carro):''}</div>
@@ -591,7 +613,7 @@ async function abrirFicha(id,refresh){
   const c=l.campanha?CAMPS.find(x=>x.codigo===l.campanha):null;
   const max=REGUA().length;
   const etapasPill=ETAPAS.filter(e=>e[0]!=='triagem'||l.etapa==='triagem').map(([k,lb])=>`<button class="pill ${l.etapa===k?'on':''}" onclick="moverEtapa(${id},'${k}')">${lb}</button>`).join('')
-    +`<button class="pill ganho ${l.etapa==='ganho'?'on':''}" onclick="moverEtapa(${id},'ganho')">Ganho</button><button class="pill perdido ${l.etapa==='perdido'?'on':''}" onclick="moverEtapa(${id},'perdido')">Perdido</button><button class="pill ${l.etapa==='nutricao'?'on':''}" style="${l.etapa==='nutricao'?'background:#6d28d9;border-color:#6d28d9;color:#fff':'border-color:#c4b5fd;color:#5b21b6'}" onclick="moverEtapa(${id},'nutricao')">Nutrição</button>`;
+    +`<button class="pill ganho ${l.etapa==='ganho'?'on':''}" onclick="moverEtapa(${id},'ganho')">Ganho</button><button class="pill perdido ${l.etapa==='perdido'?'on':''}" onclick="moverEtapa(${id},'perdido')">Perdido</button><button class="pill ${l.etapa==='nutricao'?'on':''}" style="${l.etapa==='nutricao'?'background:#6d28d9;border-color:#6d28d9;color:#fff':'border-color:#c4b5fd;color:#5b21b6'}" onclick="moverEtapa(${id},'nutricao')">Nutrição</button><button class="pill" style="border-color:#0f766e;color:#0f766e;font-weight:700" onclick="modalRetorno(${id})">📅 Retornar em...</button>`;
   let osBox='';
   if(l.os_numero){const st={pendente:['yellow','Aguardando conferência do robô'],aguardando:['yellow','OS aberta, aguardando faturamento'],confirmado:['green','Confirmado'],divergente:['red','Divergente: conferir'],sugerido:['purple','Possível ganho: confirmar?']}[l.os_status||'pendente'];
     osBox=`<div class="box ${st[0]}"><b>OS ${esc(l.os_numero)}</b> · ${st[1]}${l.os_valor?' · faturado '+brl(l.os_valor):''}${l.os_detalhe?'<br><span style="font-size:12px">'+esc(l.os_detalhe)+'</span>':''}</div>
@@ -613,7 +635,7 @@ async function abrirFicha(id,refresh){
      <div class="sec"><h4>Etapa</h4><div class="pills">${etapasPill}</div>
        ${l.etapa==='agendado'&&l.agendado_para?`<div class="box ${noShow(l)?'red':'gray'}" style="margin-top:8px"><b>${esc(quando(l.agendado_para))}</b>${noShow(l)?' · passou do horário sem OS':''} <a href="#" onclick="modalAgendar(${id});return false">remarcar</a></div>`:''}
        ${l.etapa==='perdido'?`<div class="box red" style="margin-top:8px">Perdido: <b>${esc(l.motivo_perda||'')}</b> na etapa ${esc(ETAPA_LBL[l.etapa_perda]||'')}${l.reativar_em?' · reativar em '+dia(l.reativar_em):''}${l.obs_perda?'<br>'+esc(l.obs_perda):''}</div>`:''}
-       ${l.etapa==='nutricao'?`<div class="box purple" style="margin-top:8px">Em Nutrição desde ${dia(l.nutricao_em)}${l.motivo_nutricao?': <b>'+esc(l.motivo_nutricao)+'</b>':''}${l.reativar_em?' · volta para o Kanban em <b>'+dia(l.reativar_em)+'</b>':''}. <a href="#" onclick="patch(${id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição']);return false">Voltar para o Kanban</a></div>`:''}
+       ${l.etapa==='nutricao'?`<div class="box purple" style="margin-top:8px">Em Nutrição desde ${dia(l.nutricao_em)}${l.motivo_nutricao?': <b>'+esc(l.motivo_nutricao)+'</b>':''}${l.reativar_em?' · volta para o Kanban em <b>'+dia(l.reativar_em)+'</b>':''}${l.retorno_obs?'<br>Combinado: <b>'+esc(l.retorno_obs)+'</b>':''}. <a href="#" onclick="patch(${id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição']);return false">Voltar para o Kanban</a></div>`:''}
      </div>
      ${regua}
      ${l.cliente_info?`<div class="box ${l.cliente_info.startsWith('Já comprou')?'green':'gray'}"><b>${l.cliente_info.startsWith('Já comprou')?'Cliente que já comprou':'Cliente da base do Oficina Inteligente'}</b><br><span style="font-size:13px">${esc(l.cliente_info.replace(/^(Já comprou pelo CRM|Cliente da base): /,''))}</span></div>`:''}
@@ -682,6 +704,10 @@ function renderNutricao(){
   $('kv-nutricao').innerHTML=`<div class="card" style="background:#111;color:#fff;border-color:#111;margin-bottom:14px"><div class="row" style="justify-content:space-between">
     <div style="max-width:680px"><div style="font-size:20px;font-weight:800">Banco de Nutrição · ${ls.length} leads</div><div style="color:#c9cdd4;margin-top:6px;line-height:1.5">Entra sozinho quem passou por todos os follow ups sem responder, e quem foi marcado como perdido com a opção Nutrição. Separado por interesse para receber a oferta certa.</div></div>
     <button class="btn bp" disabled title="Disponível quando o WhatsApp oficial estiver ligado">Criar disparo de oferta</button></div></div>
+    ${(()=>{const ag=ls.filter(l=>l.reativar_em).sort((a,b)=>a.reativar_em.localeCompare(b.reativar_em)); const sem=ymd(new Date(Date.now()+7*864e5));
+      return `<div class="card" style="margin-bottom:14px;border-color:#5eead4"><h3>📅 Agenda de retornos · ${ag.length}</h3><div class="muted" style="margin-bottom:8px">Cada lead volta sozinho para o Kanban na data, com o aviso do que foi combinado. Em destaque: os próximos 7 dias.</div><div class="scroll-x"><table><thead><tr><th>Volta em</th><th>Lead</th><th>O que foi combinado</th><th>Interesse</th></tr></thead><tbody>
+      ${ag.map(l=>`<tr class="tr-click" onclick="abrirFicha(${l.id})" style="${l.reativar_em<=sem?'background:#f0fdfa':''}"><td><b>${l.reativar_em.split('-').reverse().join('/')}</b></td><td><b>${esc(l.nome||foneFmt(l.telefone))}</b><div class="muted">${esc(l.carro||'')}</div></td><td>${esc(l.retorno_obs||l.motivo_nutricao||'')}</td><td class="muted">${esc(l.interesse||l.servico||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Nenhum retorno agendado. Use o botão 📅 Retornar em... na ficha do lead.</td></tr>'}
+      </tbody></table></div></div>`;})()}
     <div class="mets">${segs.slice(0,6).map(s=>`<div class="met"><div class="l">${esc(s[0])}</div><div class="v">${s[1]}</div></div>`).join('')||''}</div>
     <div class="card"><h3>Leads em nutrição</h3><div class="scroll-x"><table><thead><tr><th>Lead</th><th>Interesse</th><th>Por que entrou</th><th>Desde</th><th></th></tr></thead><tbody>
     ${ls.map(l=>`<tr class="tr-click" onclick="abrirFicha(${l.id})"><td><b>${esc(l.nome||foneFmt(l.telefone))}</b><div class="muted">${esc(l.carro||'')}</div></td><td>${esc(l.interesse||l.servico||'')}</td><td class="muted">${esc(l.motivo_nutricao||l.motivo_perda||'Sem resposta aos follow ups')}${l.reativar_em?'<div style="color:#5b21b6">volta em '+dia(l.reativar_em)+'</div>':''}</td><td class="muted">${dia(l.nutricao_em)}</td><td><button class="btn bs bsm" onclick="event.stopPropagation();patch(${l.id},{etapa:'atendimento'},['reativacao','Voltou da Nutrição'])">Voltar ao Kanban</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum lead em nutrição ainda.</td></tr>'}
